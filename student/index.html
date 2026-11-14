@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<!--
+  Cognitive Drift & Academic Stress - Student Check-In (live system)
+  KDU Research - NTPGB Upethra D/BCS/23/0021
+
+  Students create an account with a counsellor-issued invite code, then sign in with email + password
+  and can check in as often as they like. All data access goes through the signed-in student_* functions in sql/01_schema.sql.
+  The ontology analysis is done by worker/worker.py, never in the browser.
+
+  Fill in SUPABASE_URL and SUPABASE_ANON_KEY below (anon/public key only; never service_role).
+  Must be served over https (or localhost) for microphone access.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Check-In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Sinhala:wght@400;500;600&family=Noto+Sans+Tamil:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAF7F2;
+    --card: #FFFFFF;
+    --soft: #F1F5F3;
+    --primary: #2F7A6F;
+    --primary-dark: #235A52;
+    --text: #26343B;
+    --text-muted: #6B7A80;
+    --border: #E4E8E6;
+    --warn-bg: #FBF3E7;
+    --warn-text: #8A5A1E;
+    --radius: 18px;
+    --shadow: 0 8px 30px rgba(38, 52, 59, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #FAF7F2 0%, #F3EFE7 100%);
+    font-family: 'Noto Sans', 'Noto Sans Sinhala', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .screen {
+    display: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .screen.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 32px 28px;
+  }
+
+  .brand {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+  .brand .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--primary);
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .brand h1 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+
+  h2.title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  p.subtitle {
+    color: var(--text-muted);
+    margin: 0 0 24px;
+    line-height: 1.55;
+  }
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 18px 0 6px;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--soft);
+    transition: border-color 0.2s ease;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 15px;
+    margin-top: 24px;
+    background: var(--primary);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 14px;
+    transition: background 0.2s ease, transform 0.1s ease;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+  .btn-primary:disabled {
+    background: #C8D3D0;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 13px;
+    margin-top: 10px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 14px;
+  }
+  .btn-secondary:hover { color: var(--text); }
+
+  .error-text {
+    color: #B04A3A;
+    font-size: 0.88rem;
+    margin-top: 10px;
+    min-height: 1.2em;
+  }
+
+  .lang-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 22px;
+    background: var(--soft);
+    padding: 5px;
+    border-radius: 12px;
+  }
+  .lang-toggle button {
+    flex: 1;
+    padding: 9px 0;
+    background: transparent;
+    border-radius: 9px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .lang-toggle button.active {
+    background: var(--primary);
+    color: white;
+  }
+
+  .consent-box {
+    background: var(--soft);
+    border-radius: 14px;
+    padding: 16px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text);
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 6px;
+  }
+
+  .consent-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--soft);
+    border-radius: 12px;
+  }
+  .consent-check input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; }
+  .consent-check span { font-size: 0.9rem; line-height: 1.5; }
+
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .lang-note {
+    background: var(--warn-bg);
+    color: var(--warn-text);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  /* Holding screen */
+  .holding-illustration {
+    width: 84px; height: 84px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: var(--soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem;
+    animation: breathe 3.2s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.08); opacity: 1; }
+  }
+  .countdown-pill {
+    display: inline-block;
+    background: var(--warn-bg);
+    color: var(--warn-text);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 999px;
+    margin-top: 6px;
+  }
+
+  /* Progress dots for the check-in wizard */
+  .progress-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .progress-dots .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    transition: background 0.25s ease, transform 0.25s ease;
+  }
+  .progress-dots .dot.done { background: var(--primary); }
+  .progress-dots .dot.current { background: var(--primary); transform: scale(1.4); }
+
+  .substep { display: none; }
+  .substep.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Stress slider */
+  .slider-wrap { padding: 6px 4px 0; }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--primary);
+    height: 6px;
+  }
+  .slider-labels {
+    display: flex; justify-content: space-between;
+    font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;
+  }
+  .slider-value {
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 6px 0 2px;
+  }
+
+  /* Recording */
+  .mic-wrap { text-align: center; padding: 10px 0 6px; }
+  .mic-btn {
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 6px 20px rgba(47, 122, 111, 0.35);
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  .mic-btn:active { transform: scale(0.95); }
+  .mic-btn.recording {
+    background: #C0473A;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(192, 71, 58, 0.4); }
+    50% { box-shadow: 0 0 0 14px rgba(192, 71, 58, 0); }
+  }
+  .rec-timer {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-top: 16px;
+    color: var(--text);
+  }
+  .rec-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .rec-status-ok { color: var(--primary); font-weight: 600; }
+  .voice-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .voice-actions button {
+    padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--primary);
+    background: transparent; color: var(--primary); font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  }
+  .voice-actions button.danger { border-color: #C0473A; color: #C0473A; }
+  .voice-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+  #rec-preview { display: none; width: 100%; max-width: 360px; margin: 14px auto 0; }
+
+  /* Checklist chips */
+  .chip-group { margin-bottom: 16px; }
+  .chip-group-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: var(--soft);
+    border: 1.5px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--text);
+    transition: all 0.15s ease;
+  }
+  .chip.selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  .step-nav { display: flex; gap: 10px; margin-top: 22px; }
+  .step-nav .btn-primary { margin-top: 0; }
+  .step-nav .btn-back {
+    flex: 0 0 auto;
+    padding: 15px 18px;
+    background: var(--soft);
+    color: var(--text-muted);
+    border-radius: 14px;
+    font-weight: 600;
+  }
+
+  /* Thank you screen */
+  .success-mark {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 20px;
+    animation: pop 0.4s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .center { text-align: center; }
+  .hidden { display: none !important; }
+  [data-lang-block] { display: none; }
+  [data-lang-block].active { display: block; }
+
+  /* ---- additions for the live student app ---- */
+  .link-btn { background: none; color: var(--text-muted); font-size: 0.85rem; text-decoration: underline; padding: 6px; }
+  .link-btn:hover { color: var(--text); }
+  .hello { font-size: 0.95rem; color: var(--text-muted); margin: 0 0 4px; }
+  .stat-row { display: flex; gap: 12px; margin: 16px 0 6px; }
+  .stat { flex: 1; background: var(--soft); border-radius: 14px; padding: 12px 14px; }
+  .stat .num { font-size: 1.5rem; font-weight: 700; color: var(--primary); line-height: 1.1; }
+  .stat .lbl { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+  .chart-box { background: var(--soft); border-radius: 14px; padding: 12px 10px 6px; margin-top: 14px; }
+  .chart-box svg { width: 100%; height: auto; display: block; }
+  .chart-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 4px 6px; }
+  .chart-empty { font-size: 0.88rem; color: var(--text-muted); padding: 14px 6px 18px; text-align: center; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; font-size: 0.75rem; color: var(--text-muted); padding: 4px 0 8px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+  .badge-calm { background: #E3F0EC; color: #235A52; }
+  .badge-notice { background: var(--warn-bg); color: var(--warn-text); }
+  .badge-support { background: #F8E6E2; color: #8C3427; }
+  .badge-pending { background: var(--soft); color: var(--text-muted); }
+  .message-card { background: var(--soft); border-radius: 14px; padding: 16px; line-height: 1.6; white-space: pre-line; margin-top: 14px; }
+  .support-card { background: #FBF3E7; border-radius: 14px; padding: 16px; line-height: 1.55; margin-top: 14px; color: #6B4515; font-size: 0.92rem; }
+  .history { list-style: none; padding: 0; margin: 10px 0 0; }
+  .history li { display: flex; justify-content: space-between; align-items: center; padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .history li:last-child { border-bottom: none; }
+  .history .when { color: var(--text-muted); font-size: 0.8rem; }
+  .section-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 22px 0 6px; }
+  .field-hint { font-size: 0.82rem; color: var(--text-muted); margin: 4px 0 10px; line-height: 1.5; }
+  .code-input { font-size: 1.15rem !important; letter-spacing: 0.08em; text-align: center; }
+  .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); margin: 0 auto 18px; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .config-warning { background: #F8E6E2; color: #8C3427; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 0.9rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>Student Wellbeing Check-In</h1>
+  </div>
+
+  <div id="config-warning" class="config-warning hidden">
+    This page is not connected yet. Open the file and fill in <b>SUPABASE_URL</b> and
+    <b>SUPABASE_ANON_KEY</b> near the top of the script.
+  </div>
+
+  <!-- SIGN IN / CREATE ACCOUNT -->
+  <section id="screen-gate" class="screen active">
+    <div class="card">
+      <p style="margin:0 0 8px"><a class="home-link" href="../" style="color:#6B7A80;font-size:.85rem">&larr; Choose a different role</a></p>
+      <h2 class="title" id="gate-title">Welcome 👋</h2>
+      <p class="subtitle" id="gate-sub">Sign in to your check-in account.</p>
+      <div id="invite-wrap" class="hidden">
+        <label for="invite-input">Invite code from your counsellor</label>
+        <input type="text" id="invite-input" class="code-input" placeholder="xxxx-xxxx-xxxx"
+               autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <label for="email-input">Email</label>
+      <input type="email" id="email-input" autocomplete="email" />
+      <label for="pass-input">Password</label>
+      <input type="password" id="pass-input" autocomplete="current-password" />
+      <div id="pass2-wrap" class="hidden">
+        <label for="pass2-input">Repeat password</label>
+        <input type="password" id="pass2-input" autocomplete="new-password" />
+        <p class="field-hint">At least 8 characters.</p>
+      </div>
+      <button class="btn-primary" id="gate-continue-btn">Sign in</button>
+      <div class="error-text" id="gate-error"></div>
+      <div class="center" style="margin-top:10px">
+        <button class="link-btn" id="gate-toggle">First time? Create your account</button><br />
+        <button class="link-btn" id="gate-forgot">Forgot password?</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEW PASSWORD (after the reset-email link) -->
+  <section id="screen-newpass" class="screen">
+    <div class="card">
+      <h2 class="title">Choose a new password</h2>
+      <label for="np-input">New password (at least 8 characters)</label>
+      <input type="password" id="np-input" autocomplete="new-password" />
+      <button class="btn-primary" id="np-btn">Save password</button>
+      <div class="error-text" id="np-error"></div>
+    </div>
+  </section>
+
+  <!-- CONSENT (first sign-in only) -->
+  <section id="screen-consent" class="screen">
+    <div class="card">
+      <h2 class="title">Before you begin</h2>
+      <p class="subtitle">A short check-in about how your studies are going. Please read this once.</p>
+      <div class="consent-box">
+        <strong>What this is.</strong> You'll answer a few quick questions, write a few sentences, and — if you like —
+        record a short voice note. A computer-based system reads your responses and gives you a supportive note, and it
+        looks for early signs of academic stress. It is <strong>not a medical or clinical tool</strong> and it does not
+        give a diagnosis.
+        <br /><br />
+        <strong>Who can see your responses.</strong> You, and the counsellor who registered you. Your check-ins and the
+        results are stored securely and are used to support you. They are not shared with anyone else.
+        <br /><br />
+        <strong>Your choice.</strong> Taking part is voluntary and the voice note is optional. You can stop at any time and
+        ask your counsellor about your data.
+        <br /><br />
+        <strong>If you're struggling.</strong> This check-in is not an emergency service. If you ever feel unsafe or in
+        distress, please contact the KDU Student Counselling Unit or someone you trust right away.
+        <br /><br />
+        <strong>Please note:</strong> write and speak in English, since the analysis currently supports English only.
+      </div>
+      <div class="consent-check">
+        <input type="checkbox" id="consent-checkbox" />
+        <span>I have read the above and I agree to continue.</span>
+      </div>
+      <button class="btn-primary" id="consent-btn" disabled>Continue</button>
+      <div class="error-text" id="consent-error"></div>
+    </div>
+  </section>
+
+  <!-- HOME -->
+  <section id="screen-home" class="screen">
+    <div class="card">
+      <p class="hello" id="home-hello">Hi</p>
+      <h2 class="title">How are things going?</h2>
+      <p class="subtitle" style="margin-bottom:8px;">Check in whenever you like — after a study session, an exam or an assignment is a good time.</p>
+      <button class="btn-primary" id="start-checkin-btn" style="margin-top:12px;">Start a check-in</button>
+      <div class="error-text" id="home-error"></div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="stat-count">0</div><div class="lbl">check-ins so far</div></div>
+        <div class="stat"><div class="num" id="stat-last">–</div><div class="lbl">last check-in</div></div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">How you rated your stress</div>
+        <div id="chart-holder"></div>
+      </div>
+
+      <div id="latest-note" class="hidden">
+        <div class="section-label">Your latest note</div>
+        <div class="message-card" id="latest-note-text"></div>
+      </div>
+
+      <div id="history-wrap" class="hidden">
+        <div class="section-label">Past check-ins</div>
+        <ul class="history" id="history-list"></ul>
+      </div>
+
+      <div style="text-align:center; margin-top:18px;">
+        <button class="link-btn" id="signout-btn">Not you? Sign out</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHECK-IN WIZARD -->
+  <section id="screen-checkin" class="screen">
+    <div class="card">
+      <div class="progress-dots" id="progress-dots"></div>
+
+      <!-- A: context -->
+      <div class="substep active" data-step="A">
+        <h2 class="title">A little context</h2>
+        <p class="subtitle">This helps us read your check-in properly.</p>
+
+        <label>What are you doing right now?</label>
+        <div class="chips" id="ctx-activity">
+          <button type="button" class="chip" data-value="ExamPreparation">Exam preparation</button>
+          <button type="button" class="chip" data-value="AssignmentWork">Assignment work</button>
+          <button type="button" class="chip" data-value="Lecture">Lecture</button>
+          <button type="button" class="chip" data-value="SelfStudy">Self-study</button>
+        </div>
+
+        <label>How would you describe your workload at the moment?</label>
+        <div class="chips" id="ctx-workload">
+          <button type="button" class="chip" data-value="Low">Low</button>
+          <button type="button" class="chip" data-value="Moderate">Moderate</button>
+          <button type="button" class="chip" data-value="High">High</button>
+        </div>
+
+        <label>Is this connected to a specific exam or deadline?</label>
+        <div class="chips" id="ctx-linked">
+          <button type="button" class="chip" data-value="yes">Yes</button>
+          <button type="button" class="chip" data-value="no">No</button>
+        </div>
+
+        <div class="step-nav"><button class="btn-primary" id="ctx-next-btn" data-next="B" disabled>Next</button></div>
+      </div>
+
+      <!-- B: stress slider -->
+      <div class="substep" data-step="B">
+        <h2 class="title">How are you feeling today?</h2>
+        <p class="subtitle">Move the slider to where it feels right — there's no wrong answer.</p>
+        <div class="slider-wrap">
+          <div class="slider-value" id="stress-value">5</div>
+          <input type="range" id="stress-slider" min="1" max="10" value="5" />
+          <div class="slider-labels"><span>Very calm</span><span>Very stressed</span></div>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" data-back="A">Back</button>
+          <button class="btn-primary" data-next="C">Next</button>
+        </div>
+      </div>
+
+      <!-- C: self-talk -->
+      <div class="substep" data-step="C">
+        <h2 class="title">What's on your mind?</h2>
+        <p class="subtitle">Write a little about how your studies have been going lately — anything at all. Be as honest as you like.</p>
+        <div class="lang-note">Please write your response in English.</div>
+        <textarea id="self-talk-text" placeholder="I've been feeling..." maxlength="4000"></textarea>
+        <div class="field-hint" id="text-hint">A few sentences is plenty.</div>
+        <div class="step-nav">
+          <button class="btn-back" data-back="B">Back</button>
+          <button class="btn-primary" id="text-next-btn" data-next="D" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- D: voice (optional) -->
+      <div class="substep" data-step="D">
+        <h2 class="title">In your own voice <span style="font-weight:500; color:var(--text-muted); font-size:0.9rem;">(optional)</span></h2>
+        <p class="subtitle">If you'd like, talk for about 15–90 seconds about how studying has felt lately, like you're speaking to a friend. You can skip this.</p>
+        <div class="lang-note">Please speak in English during this recording.</div>
+        <div class="mic-wrap">
+          <button class="mic-btn" id="mic-btn" type="button">🎙️</button>
+          <div class="rec-timer" id="rec-timer">0:00</div>
+          <div class="rec-hint" id="rec-hint">Tap the mic to start recording</div>
+          <audio id="rec-preview" controls></audio>
+          <div class="voice-actions">
+            <button type="button" id="voice-remove-btn" class="danger" style="display:none;">Remove recording</button>
+            <button type="button" id="voice-upload-btn">Upload an audio file</button>
+          </div>
+          <input type="file" id="voice-file-input" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" style="display:none;">
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" data-back="C">Back</button>
+          <button class="btn-primary" id="voice-next-btn">Skip this step</button>
+        </div>
+      </div>
+
+      <!-- E: checklist -->
+      <div class="substep" data-step="E">
+        <h2 class="title">In your recent study sessions...</h2>
+        <p class="subtitle">Tap anything that's applied to you — there's no minimum or maximum.</p>
+        <div id="checklist-container"></div>
+        <div class="step-nav">
+          <button class="btn-back" data-back="D">Back</button>
+          <button class="btn-primary" id="submit-checkin-btn">Submit check-in</button>
+        </div>
+      </div>
+
+      <div class="error-text" id="checkin-error"></div>
+    </div>
+  </section>
+
+  <!-- SAVING -->
+  <section id="screen-saving" class="screen">
+    <div class="card center">
+      <div class="spinner"></div>
+      <h2 class="title">Saving your check-in…</h2>
+      <p class="subtitle">Please don't close this page — this only takes a moment.</p>
+    </div>
+  </section>
+
+  <!-- ANALYSING -->
+  <section id="screen-analysing" class="screen">
+    <div class="card center">
+      <div class="spinner"></div>
+      <h2 class="title">Reading through what you shared…</h2>
+      <p class="subtitle" id="analysing-sub">Your check-in is saved. This can take a minute or two.</p>
+      <button class="btn-secondary" id="analysing-home-btn">Skip the wait and go home</button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="screen-result" class="screen">
+    <div class="card">
+      <div class="center">
+        <div class="success-mark">✓</div>
+        <h2 class="title" id="result-title">Thank you for checking in</h2>
+        <span class="badge badge-calm" id="result-badge"></span>
+      </div>
+      <div id="result-support" class="support-card hidden">
+        <b>It looks like you're carrying a lot right now.</b><br />
+        We'd encourage you to talk to someone soon — you don't have to sort this out alone. Your counsellor can see this
+        check-in, and you can also reach the <b>KDU Student Counselling Unit</b> through your faculty office or student
+        portal. If you ever feel unsafe, please contact a trusted person or emergency services right away.
+      </div>
+      <div class="message-card" id="result-message"></div>
+      <p class="field-hint" style="margin-top:14px;">This check-in helps you notice patterns early. It is not a diagnosis and doesn't replace a conversation with a real person.</p>
+      <button class="btn-primary" id="result-home-btn">Back to home</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================
+   CONFIG - fill these in from Supabase > Project Settings > API
+   (the anon / public key is safe to put here; the service_role key never is)
+   ========================================================= */
+const SUPABASE_URL = "https://opvsjuuewhqpzshndput.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HJoM3eRJOqMFK_uQxC6NUg_cYH6wm9p";
+const BUCKET_NAME = "voice-recordings";
+const MIN_RECORDING_SECONDS = 15;
+const MAX_RECORDING_SECONDS = 90;
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_TRIES = 40;           // ~2 minutes of waiting for the analysis
+
+const CONFIGURED = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_");
+// NB: the client is called `sb`, not `supabase` - the CDN library already owns the global name `supabase`.
+const sb = CONFIGURED
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } })
+  : null;
+if (!CONFIGURED) document.getElementById("config-warning").classList.remove("hidden");
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = {
+  code: null, name: "", checkinCount: 0,
+  checkinId: null, audioPath: null, audioUploaded: false,
+  pageLoadTime: null,
+  ctx: { activity: null, workload: null, linked: null },
+  checklist: {},
+  recordingBlob: null, recordingDuration: 0,
+  audioCtx: null, processorNode: null, micStream: null,
+  recStartTime: null, recTimerHandle: null, audioChunks: [],
+  pollToken: 0
+};
+
+const CHECKLIST_ITEMS = [
+  { group: "Attention and focus", items: [
+    ["B1", "Difficulty staying focused"], ["B2", "Frequently distracted"], ["B3", "Zoning out during study"] ]},
+  { group: "Memory", items: [
+    ["B4", "Re-reading without understanding"], ["B5", "Forgetting what I studied"], ["B6", "Mind going blank"] ]},
+  { group: "Mental energy", items: [
+    ["B7", "Mentally exhausted quickly"], ["B8", "Thinking feels slower than usual"], ["B9", "Difficulty forming clear thoughts"] ]},
+  { group: "Avoidance", items: [
+    ["B10", "Postponing study tasks"], ["B11", "Giving up earlier than planned"], ["B12", "Feeling no point in studying"] ]},
+  { group: "Physical", items: [
+    ["B13", "Headache or physical tension"], ["B14", "Sleep difficulty due to worry"], ["B15", "Physically restless"] ]}
+];
+
+const LEVEL_TEXT = { calm: "No signs flagged today", notice: "A few things worth keeping an eye on", support: "Support is available" };
+const LEVEL_COLOR = { calm: "#2F7A6F", notice: "#C99A2E", support: "#B04A3A" };
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const $ = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+const STEPS = ["A", "B", "C", "D", "E"];
+function showSubstep(step) {
+  document.querySelectorAll(".substep").forEach(s => s.classList.remove("active"));
+  document.querySelector(`.substep[data-step="${step}"]`).classList.add("active");
+  const wrap = $("progress-dots");
+  wrap.innerHTML = "";
+  const idx = STEPS.indexOf(step);
+  STEPS.forEach((s, i) => {
+    const d = document.createElement("div");
+    d.className = "dot" + (i < idx ? " done" : "") + (i === idx ? " current" : "");
+    wrap.appendChild(d);
+  });
+}
+
+async function rpc(name, args) {
+  const { data, error } = await sb.rpc(name, args);
+  if (error) throw new Error(error.message || "request failed");
+  return data;
+}
+
+function friendly(err) {
+  const m = String((err && err.message) || err || "");
+  if (m.includes("consent_required")) return "Please accept the consent first.";
+  if (m.includes("text_too_short")) return "Please write a little more about how you're feeling.";
+  if (m.includes("invalid_invite") || m.includes("Database error saving")) return "That invite code isn't valid or was already used. Please ask your counsellor for a new one.";
+  if (m.includes("Invalid login")) return "Email or password is incorrect.";
+  if (m.includes("already registered")) return "That email already has an account - try signing in instead.";
+  if (m.includes("Password should")) return "Please choose a longer password (at least 8 characters).";
+  if (m.includes("rate limit")) return "Too many attempts - please wait a few minutes and try again.";
+  if (m.includes("not_a_student")) return "This account isn't linked to a student record. Please ask your counsellor.";
+  if (m.includes("already_submitted")) return "That check-in was already submitted.";
+  return "Something went wrong. Please check your connection and try again.";
+}
+
+
+function fmtDate(iso) {
+  if (!iso) return "–";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ", " +
+         d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/* =========================================================
+   SIGN IN
+   ========================================================= */
+let gateMode = "in";
+function setGateMode(m) {
+  gateMode = m;
+  const up = m === "up";
+  $("invite-wrap").classList.toggle("hidden", !up);
+  $("pass2-wrap").classList.toggle("hidden", !up);
+  $("gate-title").textContent = up ? "Create your account" : "Welcome 👋";
+  $("gate-sub").textContent = up ? "Use the invite code your counsellor gave you, then choose your own email and password."
+                                 : "Sign in to your check-in account.";
+  $("gate-continue-btn").textContent = up ? "Create account" : "Sign in";
+  $("gate-toggle").textContent = up ? "I already have an account" : "First time? Create your account";
+  $("pass-input").autocomplete = up ? "new-password" : "current-password";
+  $("gate-error").textContent = "";
+}
+$("gate-toggle").addEventListener("click", () => setGateMode(gateMode === "in" ? "up" : "in"));
+$("gate-continue-btn").addEventListener("click", submitGate);
+["email-input", "pass-input", "pass2-input", "invite-input"].forEach(id =>
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter") submitGate(); }));
+
+async function submitGate() {
+  if (!CONFIGURED) return;
+  const errEl = $("gate-error"); errEl.textContent = "";
+  const email = $("email-input").value.trim(), pw = $("pass-input").value;
+  if (!email || !pw) { errEl.textContent = "Please enter your email and password."; return; }
+  const btn = $("gate-continue-btn"); btn.disabled = true;
+  try {
+    if (gateMode === "up") {
+      const invite = $("invite-input").value.trim().toLowerCase().replace(/\s+/g, "");
+      if (!invite) throw new Error("Please enter your invite code.");
+      if (pw.length < 8) throw new Error("Password should be at least 8 characters");
+      if (pw !== $("pass2-input").value) throw new Error("The two passwords don't match.");
+      const ok = await rpc("invite_valid", { p_code: invite });
+      if (!ok) throw new Error("invalid_invite");
+      const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { invite_code: invite } } });
+      if (error) throw error;
+      if (!data.session) {
+        errEl.textContent = "Account created. Check your email to confirm it, then sign in.";
+        setGateMode("in"); return;
+      }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if (error) throw error;
+    }
+    await afterAuth(false);
+  } catch (err) {
+    console.error(err);
+    errEl.textContent = (err && /^(Please|The two)/.test(err.message)) ? err.message : friendly(err);
+  } finally { btn.disabled = false; }
+}
+
+$("gate-forgot").addEventListener("click", async () => {
+  const email = $("email-input").value.trim(), errEl = $("gate-error");
+  if (!email) { errEl.textContent = "Type your email above first, then click 'Forgot password?'."; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href.split("#")[0] });
+  errEl.textContent = error ? friendly(error) : "If that email has an account, a reset link is on its way.";
+});
+$("np-btn").addEventListener("click", async () => {
+  const pw = $("np-input").value; $("np-error").textContent = "";
+  if (pw.length < 8) { $("np-error").textContent = "Please use at least 8 characters."; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { $("np-error").textContent = friendly(error); return; }
+  await afterAuth(false);
+});
+
+// After a successful auth: load this student's profile and route to consent / home.
+async function afterAuth(silent) {
+  try {
+    const res = await rpc("student_me", {});
+    if (!res || !res.ok) {
+      await sb.auth.signOut();
+      if (!silent) $("gate-error").textContent = "This account isn't linked to an active student record. Please ask your counsellor.";
+      showScreen("screen-gate"); return;
+    }
+    state.name = res.display_name;
+    state.checkinCount = res.checkin_count;
+    if (!res.consent_given) { showScreen("screen-consent"); return; }
+    await showHome();
+  } catch (err) {
+    console.error(err);
+    if (!silent) $("gate-error").textContent = friendly(err);
+    showScreen("screen-gate");
+  }
+}
+
+$("signout-btn").addEventListener("click", async () => {
+  state.pollToken++;
+  await sb.auth.signOut();
+  $("pass-input").value = "";
+  showScreen("screen-gate");
+});
+
+/* =========================================================
+   CONSENT
+   ========================================================= */
+$("consent-checkbox").addEventListener("change", e => { $("consent-btn").disabled = !e.target.checked; });
+$("consent-btn").addEventListener("click", async () => {
+  const btn = $("consent-btn");
+  $("consent-error").textContent = "";
+  btn.disabled = true;
+  try {
+    await rpc("student_accept_consent", {});
+    await showHome();
+  } catch (err) {
+    console.error(err);
+    $("consent-error").textContent = friendly(err);
+    btn.disabled = false;
+  }
+});
+
+/* =========================================================
+   HOME + PROGRESS
+   ========================================================= */
+async function showHome() {
+  state.pollToken++;
+  $("home-hello").textContent = "Hi " + (state.name || "there");
+  $("home-error").textContent = "";
+  showScreen("screen-home");
+  try {
+    const res = await rpc("student_get_progress", {});
+    renderProgress(res && res.ok ? (res.checkins || []) : []);
+  } catch (err) {
+    console.error(err);
+    $("home-error").textContent = "We couldn't load your progress just now.";
+    renderProgress([]);
+  }
+}
+
+function renderProgress(rows) {          // rows are newest first
+  $("stat-count").textContent = rows.length;
+  $("stat-last").textContent = rows.length ? fmtDate(rows[0].submitted_at) : "–";
+
+  const chrono = rows.slice().reverse().slice(-15);
+  const holder = $("chart-holder");
+  holder.innerHTML = "";
+  if (chrono.length < 2) {
+    const p = document.createElement("div");
+    p.className = "chart-empty";
+    p.textContent = chrono.length === 0
+      ? "Your progress will appear here after your first check-ins."
+      : "One check-in so far — your trend will appear after the next one.";
+    holder.appendChild(p);
+  } else {
+    holder.appendChild(buildChart(chrono));
+    const lg = document.createElement("div");
+    lg.className = "legend";
+    lg.innerHTML = '<span><i style="background:#2F7A6F"></i>calm</span><span><i style="background:#C99A2E"></i>worth watching</span><span><i style="background:#B04A3A"></i>support suggested</span><span><i style="background:#B8C2BF"></i>not analysed</span>';
+    holder.appendChild(lg);
+  }
+
+  const latestDone = rows.find(r => r.message);
+  $("latest-note").classList.toggle("hidden", !latestDone);
+  if (latestDone) $("latest-note-text").textContent = latestDone.message;
+
+  const list = $("history-list");
+  list.innerHTML = "";
+  rows.slice(0, 10).forEach(r => {
+    const li = document.createElement("li");
+    const left = document.createElement("div");
+    const t = document.createElement("div");
+    t.textContent = "Check-in " + r.seq;
+    const w = document.createElement("div");
+    w.className = "when";
+    w.textContent = fmtDateTime(r.submitted_at) + "  ·  stress " + r.stress_label + "/10";
+    left.appendChild(t); left.appendChild(w);
+    const b = document.createElement("span");
+    const level = r.level;
+    b.className = "badge " + (level ? "badge-" + level : "badge-pending");
+    b.textContent = level ? ({ calm: "Calm", notice: "Worth watching", support: "Support" }[level]) : (r.status === "failed" ? "Not analysed" : "Processing");
+    li.appendChild(left); li.appendChild(b);
+    list.appendChild(li);
+  });
+  $("history-wrap").classList.toggle("hidden", rows.length === 0);
+}
+
+function buildChart(chrono) {
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 320, H = 130, padL = 26, padR = 12, padT = 10, padB = 20;
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Your self-rated stress over your check-ins");
+  const mk = (tag, attrs) => { const el = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); return el; };
+  const x = i => padL + (chrono.length === 1 ? 0 : i * (W - padL - padR) / (chrono.length - 1));
+  const y = v => padT + (10 - v) * (H - padT - padB) / 9;
+
+  [1, 5, 10].forEach(v => {
+    svg.appendChild(mk("line", { x1: padL, x2: W - padR, y1: y(v), y2: y(v), stroke: "#E4E8E6", "stroke-width": 1 }));
+    const t = mk("text", { x: padL - 6, y: y(v) + 3, "text-anchor": "end", "font-size": 9, fill: "#6B7A80" });
+    t.textContent = v; svg.appendChild(t);
+  });
+  svg.appendChild(mk("polyline", {
+    points: chrono.map((r, i) => `${x(i)},${y(r.stress_label)}`).join(" "),
+    fill: "none", stroke: "#2F7A6F", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", opacity: 0.55
+  }));
+  chrono.forEach((r, i) => {
+    svg.appendChild(mk("circle", { cx: x(i), cy: y(r.stress_label), r: 4.5, fill: LEVEL_COLOR[r.level] || "#B8C2BF", stroke: "#fff", "stroke-width": 1.5 }));
+  });
+  const first = mk("text", { x: padL, y: H - 5, "font-size": 9, fill: "#6B7A80" });
+  first.textContent = fmtDate(chrono[0].submitted_at); svg.appendChild(first);
+  const last = mk("text", { x: W - padR, y: H - 5, "text-anchor": "end", "font-size": 9, fill: "#6B7A80" });
+  last.textContent = fmtDate(chrono[chrono.length - 1].submitted_at); svg.appendChild(last);
+  return svg;
+}
+
+/* =========================================================
+   CHECK-IN WIZARD
+   ========================================================= */
+$("start-checkin-btn").addEventListener("click", beginCheckin);
+
+async function beginCheckin() {
+  const btn = $("start-checkin-btn");
+  $("home-error").textContent = "";
+  btn.disabled = true;
+  try {
+    const r = await rpc("student_start_checkin", {});
+    state.checkinId = r.checkin_id;
+    state.audioPath = r.audio_path;
+    state.audioUploaded = false;
+    state.pageLoadTime = Date.now();
+    state.ctx = { activity: null, workload: null, linked: null };
+    state.checklist = {};
+    state.recordingBlob = null;
+    state.recordingDuration = 0;
+
+    document.querySelectorAll("#ctx-activity .chip, #ctx-workload .chip, #ctx-linked .chip")
+      .forEach(c => c.classList.remove("selected"));
+    $("self-talk-text").value = "";
+    $("stress-slider").value = 5;
+    $("stress-value").textContent = "5";
+    $("checkin-error").textContent = "";
+    updateCtxNext(); updateTextNext();
+    resetRecordingUI();
+    renderChecklist();
+    showSubstep("A");
+    showScreen("screen-checkin");
+  } catch (err) {
+    console.error(err);
+    $("home-error").textContent = friendly(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.querySelectorAll("[data-next]").forEach(btn =>
+  btn.addEventListener("click", () => showSubstep(btn.dataset.next)));
+document.querySelectorAll("[data-back]").forEach(btn =>
+  btn.addEventListener("click", () => { if (state.recStartTime) stopRecording(); showSubstep(btn.dataset.back); }));
+
+// Step A: single-select chips
+function bindSingleSelect(containerId, key) {
+  document.querySelectorAll(`#${containerId} .chip`).forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(`#${containerId} .chip`).forEach(c => c.classList.remove("selected"));
+      chip.classList.add("selected");
+      state.ctx[key] = chip.dataset.value;
+      updateCtxNext();
+    });
+  });
+}
+bindSingleSelect("ctx-activity", "activity");
+bindSingleSelect("ctx-workload", "workload");
+bindSingleSelect("ctx-linked", "linked");
+function updateCtxNext() {
+  $("ctx-next-btn").disabled = !(state.ctx.activity && state.ctx.workload && state.ctx.linked);
+}
+
+// Step B: slider
+$("stress-slider").addEventListener("input", e => { $("stress-value").textContent = e.target.value; });
+
+// Step C: text
+$("self-talk-text").addEventListener("input", updateTextNext);
+function updateTextNext() {
+  const len = $("self-talk-text").value.trim().length;
+  $("text-next-btn").disabled = len < 10;
+  $("text-hint").textContent = len < 10 ? "A few sentences is plenty — just a little more to continue." : "Thank you — that's enough to continue, add more if you'd like.";
+}
+
+// Step D: voice (optional)
+function audioValid() {
+  return !!state.recordingBlob && state.recordingDuration >= MIN_RECORDING_SECONDS;
+}
+function updateVoiceNext() {
+  $("voice-next-btn").textContent = audioValid() ? "Next" : "Skip this step";
+  const has = !!state.recordingBlob;
+  $("voice-remove-btn").style.display = has && !state.recStartTime ? "" : "none";
+  $("voice-upload-btn").disabled = !!state.recStartTime;
+  const pv = $("rec-preview");
+  if (has && !state.recStartTime) {
+    if (!pv.dataset.url) { pv.dataset.url = URL.createObjectURL(state.recordingBlob); pv.src = pv.dataset.url; }
+    pv.style.display = "block";
+  } else {
+    pv.pause();
+    if (pv.dataset.url) { URL.revokeObjectURL(pv.dataset.url); delete pv.dataset.url; }
+    pv.removeAttribute("src"); pv.style.display = "none";
+  }
+}
+// Remove the current recording / uploaded file so the student can record again, upload another, or skip.
+function clearRecording(silent) {
+  if (state.recStartTime) stopRecording();
+  state.recordingBlob = null;
+  state.recordingDuration = 0;
+  state.audioChunks = [];
+  state.recTimerHandle && clearInterval(state.recTimerHandle);
+  const hint = $("rec-hint");
+  $("rec-timer").textContent = "0:00";
+  hint.textContent = "Tap the mic to start recording";
+  hint.classList.remove("rec-status-ok");
+  updateVoiceNext();
+  if (!silent) hint.textContent = "Recording removed. Record again, upload a file, or skip this step.";
+}
+$("voice-remove-btn").addEventListener("click", () => clearRecording(false));
+$("voice-upload-btn").addEventListener("click", () => $("voice-file-input").click());
+$("voice-file-input").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  const hint = $("rec-hint");
+  hint.classList.remove("rec-status-ok");
+  if (file.size > 25 * 1024 * 1024) { hint.textContent = "That file is too large (max 25 MB). Please choose a shorter one."; return; }
+  hint.textContent = "Reading your audio file...";
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const decoded = await ctx.decodeAudioData(await file.arrayBuffer());
+    ctx.close();
+    const secs = decoded.duration;
+    if (secs < MIN_RECORDING_SECONDS) {
+      hint.textContent = `That file is only ${Math.round(secs)}s — please use at least ${MIN_RECORDING_SECONDS}s.`;
+      return;
+    }
+    const keep = Math.min(decoded.length, Math.floor(MAX_RECORDING_SECONDS * decoded.sampleRate));
+    const mono = new Float32Array(keep);
+    for (let c = 0; c < decoded.numberOfChannels; c++) {
+      const ch = decoded.getChannelData(c);
+      for (let i = 0; i < keep; i++) mono[i] += ch[i] / decoded.numberOfChannels;
+    }
+    state.recordingBlob = encodeWAV(mono, decoded.sampleRate);   // always stored as WAV for the analysis step
+    state.recordingDuration = keep / decoded.sampleRate;
+    const m = Math.floor(state.recordingDuration / 60), sec = Math.floor(state.recordingDuration % 60).toString().padStart(2, "0");
+    $("rec-timer").textContent = `${m}:${sec}`;
+    hint.textContent = secs > MAX_RECORDING_SECONDS
+      ? `File added (first ${MAX_RECORDING_SECONDS}s used) — you're all set`
+      : "File added — you're all set";
+    hint.classList.add("rec-status-ok");
+    updateVoiceNext();
+  } catch (err) {
+    console.error("audio file decode failed", err);
+    hint.textContent = "We couldn't read that file. Try a WAV, MP3 or M4A, or record directly.";
+  }
+});
+$("voice-next-btn").addEventListener("click", () => {
+  if (state.recStartTime) stopRecording();
+  showSubstep("E");
+});
+
+// Step E: checklist chips
+function renderChecklist() {
+  const container = $("checklist-container");
+  container.innerHTML = "";
+  CHECKLIST_ITEMS.forEach(group => {
+    const groupEl = document.createElement("div");
+    groupEl.className = "chip-group";
+    const label = document.createElement("div");
+    label.className = "chip-group-label";
+    label.textContent = group.group;
+    groupEl.appendChild(label);
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    group.items.forEach(([code, text]) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = text;
+      chip.addEventListener("click", () => {
+        state.checklist[code] = !state.checklist[code];
+        chip.classList.toggle("selected", !!state.checklist[code]);
+      });
+      chips.appendChild(chip);
+    });
+    groupEl.appendChild(chips);
+    container.appendChild(groupEl);
+  });
+}
+
+/* ---- Step C: voice recording (raw PCM -> WAV, no MediaRecorder) ---- */
+document.getElementById("mic-btn").addEventListener("click", toggleRecording);
+
+function resetRecordingUI() {
+  clearRecording(true);
+  document.getElementById("rec-timer").textContent = "0:00";
+  document.getElementById("rec-hint").textContent = "Tap the mic to start recording";
+  document.getElementById("rec-hint").classList.remove("rec-status-ok");
+  document.getElementById("mic-btn").classList.remove("recording");
+  updateVoiceNext();
+}
+
+async function toggleRecording() {
+  const micBtn = document.getElementById("mic-btn");
+  if (!state.recStartTime) {
+    // start
+    try {
+      state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      document.getElementById("rec-hint").textContent =
+        "We couldn't hear you — please allow microphone access and tap the mic again.";
+      return;
+    }
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    state.audioCtx = new AudioCtx();
+    const source = state.audioCtx.createMediaStreamSource(state.micStream);
+    state.processorNode = state.audioCtx.createScriptProcessor(4096, 1, 1);
+    state.audioChunks = [];
+
+    state.processorNode.onaudioprocess = e => {
+      const input = e.inputBuffer.getChannelData(0);
+      state.audioChunks.push(new Float32Array(input));
+    };
+    // route through a silent gain node so the mic isn't echoed to speakers
+    const silentGain = state.audioCtx.createGain();
+    silentGain.gain.value = 0;
+    source.connect(state.processorNode);
+    state.processorNode.connect(silentGain);
+    silentGain.connect(state.audioCtx.destination);
+
+    state.recStartTime = Date.now();
+    micBtn.classList.add("recording");
+    micBtn.textContent = "⏹️";
+    document.getElementById("rec-hint").textContent = `Keep going until at least ${MIN_RECORDING_SECONDS}s`;
+
+    state.recTimerHandle = setInterval(updateRecTimer, 250);
+  } else {
+    stopRecording();
+  }
+}
+
+function updateRecTimer() {
+  const elapsed = (Date.now() - state.recStartTime) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60).toString().padStart(2, "0");
+  document.getElementById("rec-timer").textContent = `${m}:${s}`;
+
+  if (elapsed >= MIN_RECORDING_SECONDS) {
+    document.getElementById("rec-hint").textContent = "You can stop any time now";
+    document.getElementById("rec-hint").classList.add("rec-status-ok");
+    updateVoiceNext();
+  }
+  if (elapsed >= MAX_RECORDING_SECONDS) {
+    stopRecording();
+  }
+}
+
+function stopRecording() {
+  clearInterval(state.recTimerHandle);
+  state.recordingDuration = (Date.now() - state.recStartTime) / 1000;
+
+  state.processorNode.disconnect();
+  state.audioCtx.close();
+  state.micStream.getTracks().forEach(t => t.stop());
+
+  const sampleRate = state.audioCtx.sampleRate;
+  const merged = mergeFloat32(state.audioChunks);
+  state.recordingBlob = encodeWAV(merged, sampleRate);
+
+  document.getElementById("mic-btn").classList.remove("recording");
+  document.getElementById("mic-btn").textContent = "🎙️";
+  state.recStartTime = null;
+
+  if (state.recordingDuration >= MIN_RECORDING_SECONDS) {
+    document.getElementById("rec-hint").textContent = "Recorded — you're all set";
+    document.getElementById("rec-hint").classList.add("rec-status-ok");
+    updateVoiceNext();
+  } else {
+    document.getElementById("rec-hint").textContent =
+      `That was only ${Math.round(state.recordingDuration)}s — please record at least ${MIN_RECORDING_SECONDS}s. Tap the mic to try again.`;
+    updateVoiceNext();
+  }
+}
+
+function mergeFloat32(chunks) {
+  let length = 0;
+  chunks.forEach(c => (length += c.length));
+  const result = new Float32Array(length);
+  let offset = 0;
+  chunks.forEach(c => {
+    result.set(c, offset);
+    offset += c.length;
+  });
+  return result;
+}
+
+// Minimal, dependency-free 16-bit PCM WAV encoder.
+// This keeps the file format compatible with pipeline.py's
+// _decode_wav_bytes(), which reads plain WAV via Python's `wave` module.
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);        // PCM
+  view.setUint16(22, 1, true);        // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+async function submitCheckin() {
+  const btn = $("submit-checkin-btn");
+  $("checkin-error").textContent = "";
+  btn.disabled = true;
+  showScreen("screen-saving");
+  let hasAudio = false;
+  try {
+    if (audioValid()) {
+      if (state.audioUploaded) {
+        hasAudio = true;
+      } else {
+        const { error: upErr } = await sb.storage.from(BUCKET_NAME)
+          .upload(state.audioPath, state.recordingBlob, { contentType: "audio/wav", upsert: false });
+        if (!upErr || /exist|duplicate|409/i.test(upErr.message || "")) {
+          state.audioUploaded = true; hasAudio = true;
+        } else {
+          console.error("audio upload failed", upErr);   // carry on without audio
+        }
+      }
+    }
+    const checklist = {};
+    for (let i = 1; i <= 15; i++) checklist["B" + i] = !!state.checklist["B" + i];
+    const res = await rpc("student_finish_checkin", {
+      p_checkin_id: state.checkinId,
+      p_stress: parseInt($("stress-slider").value, 10),
+      p_text: $("self-talk-text").value.trim(),
+      p_checklist: checklist,
+      p_activity: state.ctx.activity,
+      p_workload: state.ctx.workload,
+      p_linked: state.ctx.linked === "yes",
+      p_has_audio: hasAudio,
+      p_audio_seconds: hasAudio ? Math.round(state.recordingDuration) : null,
+      p_completion_seconds: Math.round((Date.now() - state.pageLoadTime) / 1000)
+    });
+    if (res && res.ok === false) throw new Error(res.error || "Could not save");
+    state.checkinCount += 1;
+    showScreen("screen-analysing");
+    waitForResult(state.checkinId);
+  } catch (err) {
+    console.error(err);
+    showScreen("screen-checkin");
+    showSubstep("E");
+    $("checkin-error").textContent = friendly(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function waitForResult(checkinId) {
+  const token = ++state.pollToken;
+  $("analysing-sub").textContent = "Your check-in is saved. This can take a minute or two.";
+  for (let i = 0; i < POLL_MAX_TRIES; i++) {
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+    if (token !== state.pollToken) return;
+    try {
+      const res = await rpc("student_get_result", { p_checkin_id: checkinId });
+      if (token !== state.pollToken) return;
+      if (res && res.ok && res.status === "done" && res.message) { showResult(res); return; }
+      if (res && res.ok && res.status === "failed") break;
+    } catch (e) { console.error(e); }
+  }
+  if (token === state.pollToken)
+    $("analysing-sub").textContent = "Your check-in is saved. The analysis is taking longer than usual - you can go home and your result will appear in your history.";
+}
+
+function showResult(res) {
+  const labels = { calm: "Looking steady", notice: "Worth keeping an eye on", support: "Support suggested" };
+  const level = labels[res.level] ? res.level : "calm";
+  $("result-badge").className = "badge badge-" + level;
+  $("result-badge").textContent = labels[level];
+  $("result-message").textContent = res.message || "";
+  $("result-support").classList.toggle("hidden", level !== "support");
+  showScreen("screen-result");
+}
+
+$("submit-checkin-btn").addEventListener("click", submitCheckin);
+$("analysing-home-btn").addEventListener("click", () => { state.pollToken++; showHome(); });
+$("result-home-btn").addEventListener("click", () => showHome());
+
+/* ---- init ---- */
+renderChecklist();
+(async function init() {
+  if (!CONFIGURED) return;
+  sb.auth.onAuthStateChange((event) => { if (event === "PASSWORD_RECOVERY") showScreen("screen-newpass"); });
+  const { data } = await sb.auth.getSession();
+  if (data && data.session && !/type=recovery/.test(window.location.hash)) afterAuth(true);
+})();
+</script>
+</body>
+</html>

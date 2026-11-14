@@ -1,0 +1,9 @@
+/__pycache__
+/.vscode
+/Backup files
+diagnose_rules.py
+eval_features.json
+/venv
+/sql
+synthetic_labels.csv
+/Not in Use files

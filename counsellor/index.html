@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Counsellor Dashboard</title>
+<!--
+  Counsellor dashboard for the live system. Counsellors sign up / sign in with Supabase Auth,
+  register students (access code shown ONCE), and see only the students they registered (enforced by RLS).
+  Fill in the two values below (anon/public key only - never service_role).
+-->
+<style>
+:root{--bg:#F4F7F6;--card:#fff;--text:#1F2D33;--muted:#6B7A80;--line:#E4E8E6;--brand:#2F7A6F;--brand-d:#256158;--calm:#2F7A6F;--notice:#C98A1B;--support:#C0483D;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:1.05rem;margin:0}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+h2{font-size:1.05rem;margin:0 0 10px}
+h3{font-size:.95rem;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;margin:4px 0 10px;background:#fff}
+label{font-size:.85rem;color:var(--muted)}
+button{font:inherit;border:0;border-radius:8px;padding:9px 14px;cursor:pointer;background:var(--brand);color:#fff}
+button:hover{background:var(--brand-d)} button:disabled{opacity:.5;cursor:default}
+button.sec{background:#fff;color:var(--text);border:1px solid var(--line)} button.sec:hover{background:var(--bg)}
+button.danger{background:#fff;color:var(--support);border:1px solid var(--support)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:0 0 auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:600px){.grid2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.8rem}
+tr.click{cursor:pointer}tr.click:hover{background:var(--bg)}
+.table-wrap{overflow-x:auto}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.78rem;color:#fff}
+.b-calm{background:var(--calm)}.b-notice{background:var(--notice)}.b-support{background:var(--support)}.b-none{background:#B8C2BF}
+.muted{color:var(--muted);font-size:.85rem}.err{color:var(--support);font-size:.9rem;min-height:1.2em}
+.hidden{display:none!important}
+.alert-item{border-left:4px solid var(--support);padding:8px 12px;margin-bottom:8px;background:#FDF3F2;border-radius:6px}
+.codebox{font-family:ui-monospace,Menlo,monospace;font-size:1.5rem;letter-spacing:.06em;background:#EEF6F4;border:2px dashed var(--brand);border-radius:10px;padding:14px;text-align:center;margin:10px 0;user-select:all}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:10px;border-radius:8px;font-size:.85rem;margin:6px 0}
+details{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px;background:#fff}
+summary{cursor:pointer;font-weight:600}
+.chart{width:100%;max-width:640px}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:.78rem;margin:2px 4px 2px 0}
+.note-item{border-left:4px solid var(--brand);padding:8px 12px;margin-bottom:8px;background:#F1F7F5;border-radius:6px}
+.note-item .meta{font-size:.78rem;color:var(--muted)}
+.ack-form{margin-top:8px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:8px}
+.warn{background:#FFF6E5;border:1px solid #F0D79A;border-radius:8px;padding:10px;font-size:.9rem}
+</style>
+</head>
+<body>
+<div id="config-warning" class="warn hidden" style="margin:16px">Set SUPABASE_URL and SUPABASE_ANON_KEY in this file first.</div>
+
+<!-- AUTH -->
+<main id="v-auth" class="hidden">
+  <div class="card" style="max-width:420px;margin:40px auto">
+    <p style="margin:0 0 8px"><a class="home-link" href="../" style="color:#6B7A80;font-size:.85rem">&larr; Choose a different role</a></p>
+      <h2 id="auth-title">Counsellor sign in</h2>
+    <div id="name-wrap" class="hidden"><label>Full name</label><input id="a-name" autocomplete="name" /></div>
+    <label>Email</label><input id="a-email" type="email" autocomplete="email" />
+    <label>Password</label><input id="a-pass" type="password" autocomplete="current-password" />
+    <div class="err" id="a-err"></div>
+    <div class="row"><button id="a-go">Sign in</button><button class="sec" id="a-toggle">Create an account</button></div>
+    <p style="margin:12px 0 0"><a href="#" id="a-forgot" class="muted">Forgot password?</a></p>
+    <p class="muted">Prototype note: anyone who opens this page can create a counsellor account. For production, restrict sign-ups in Supabase.</p>
+  </div>
+</main>
+
+<!-- NEW PASSWORD (after the reset-email link) -->
+<main id="v-newpass" class="hidden">
+  <div class="card" style="max-width:420px;margin:40px auto">
+    <h2>Choose a new password</h2>
+    <label>New password (at least 8 characters)</label><input id="np-pass" type="password" autocomplete="new-password" />
+    <div class="err" id="np-err"></div>
+    <button id="np-go">Save password</button>
+  </div>
+</main>
+
+<!-- APP -->
+<div id="v-app" class="hidden">
+  <header><h1>Counselling dashboard <span class="muted" id="who"></span></h1><button class="sec" id="signout">Sign out</button></header>
+  <main>
+    <!-- LIST VIEW -->
+    <div id="v-list">
+      <div class="card"><h2>Needs attention</h2><div id="alerts-box" class="muted">Loading…</div></div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><h2 style="margin:0">My students</h2><button id="new-btn">Register a student</button></div>
+        <div id="reg-form" class="hidden" style="margin-top:12px">
+          <div class="grid2">
+            <div><label>Name or nickname</label><input id="r-name" maxlength="80" /></div>
+            <div><label>Discipline (optional)</label><input id="r-disc" maxlength="80" /></div>
+            <div><label>Academic year</label><select id="r-year"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+          </div>
+          <div class="err" id="r-err"></div>
+          <div class="row"><button id="r-go">Register</button><button class="sec" id="r-cancel">Cancel</button></div>
+        </div>
+        <div id="code-reveal" class="hidden">
+          <h3 id="code-for"></h3>
+          <div class="codebox" id="code-val"></div>
+          <p class="muted">Give this code to the student privately. They use it once on the student page to create their own account (email + password). It is shown only once; if lost, open the student and issue a new invite.</p>
+          <button class="sec" id="code-copy">Copy code</button> <button class="sec" id="code-done">Done</button>
+        </div>
+        <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Student</th><th>Check-ins</th><th>Last</th><th>Latest status</th><th>Alerts</th></tr></thead><tbody id="cases"></tbody></table></div>
+        <p class="muted" id="cases-empty"></p>
+      </div>
+    </div>
+
+    <!-- DETAIL VIEW -->
+    <div id="v-detail" class="hidden">
+      <button class="sec" id="back">&larr; All students</button>
+      <div class="card" style="margin-top:12px">
+        <h2 id="d-name"></h2><div class="muted" id="d-meta"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="sec hidden" id="d-reset">Issue new invite code</button>
+          <button class="danger" id="d-toggle"></button>
+        </div>
+        <div id="d-code" class="hidden"><div class="codebox" id="d-code-val"></div><p class="muted">New invite code - shown once. The old invite no longer works.</p></div>
+        <div class="err" id="d-err"></div>
+      </div>
+      <div class="card"><h2>Stress trend</h2><div id="d-chart" class="muted">No check-ins yet.</div></div>
+      <div class="card">
+        <h2>My private notes</h2>
+        <p class="muted">Only you can see these. Students and other counsellors cannot.</p>
+        <div class="grid2">
+          <div><label>What happened</label>
+            <select id="n-kind">
+              <option value="reviewed">Reviewed the check-in</option>
+              <option value="contacted">Contacted the student</option>
+              <option value="met_in_person">Met the student in person</option>
+              <option value="referred">Referred to another service</option>
+              <option value="follow_up">Follow-up needed</option>
+              <option value="other">Other</option>
+            </select></div>
+          <div><label>About which check-in (optional)</label><select id="n-checkin"><option value="">General note</option></select></div>
+        </div>
+        <label>Note / feedback</label>
+        <textarea id="n-text" rows="3" maxlength="2000" placeholder="e.g. Met after the alert. Exam pressure and poor sleep. Agreed a study plan; review again next Friday."></textarea>
+        <div class="err" id="n-err"></div>
+        <button id="n-add">Save note</button>
+        <div id="n-list" style="margin-top:14px"></div>
+      </div>
+      <div class="card"><h2>Check-ins</h2><div id="d-list" class="muted"></div></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://opvsjuuewhqpzshndput.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HJoM3eRJOqMFK_uQxC6NUg_cYH6wm9p";
+const BUCKET_NAME = "voice-recordings";
+const CONFIGURED = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_");
+// client is `sb` (the CDN library owns the global name `supabase`)
+const sb = CONFIGURED ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const LEVEL = { CounselorAlert_Output: "support", ResourceRecommendation_Output: "notice", StudentAwarenessMessage_Output: "notice" };
+const LABEL = { support: "Support suggested", notice: "Worth monitoring", calm: "Steady", none: "No analysis yet" };
+const levelOf = (esc, analysed) => esc ? (LEVEL[esc] || "calm") : (analysed ? "calm" : "none");
+const nice = s => (s || "").replace(/_Output$/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+const fmt = d => d ? new Date(d).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "-";
+function badge(level) { return el("span", "badge b-" + level, LABEL[level]); }
+function show(id) { ["v-auth", "v-app", "v-newpass"].forEach(v => $(v).classList.toggle("hidden", v !== id)); }
+
+let recovering = false, mode = "in", user = null, current = null, curRows = [], curNotes = [];
+const KIND = { reviewed: "Reviewed", contacted: "Contacted", met_in_person: "Met in person", referred: "Referred", follow_up: "Follow-up needed", other: "Note" };
+
+/* ---------- auth ---------- */
+$("a-toggle").onclick = () => {
+  mode = mode === "in" ? "up" : "in";
+  $("auth-title").textContent = mode === "in" ? "Counsellor sign in" : "Create counsellor account";
+  $("a-go").textContent = mode === "in" ? "Sign in" : "Sign up";
+  $("a-toggle").textContent = mode === "in" ? "Create an account" : "I have an account";
+  $("name-wrap").classList.toggle("hidden", mode === "in");
+  $("a-err").textContent = "";
+};
+$("a-go").onclick = async () => {
+  const email = $("a-email").value.trim(), password = $("a-pass").value, name = $("a-name").value.trim();
+  $("a-err").textContent = "";
+  if (!email || password.length < 6) { $("a-err").textContent = "Enter an email and a password of at least 6 characters."; return; }
+  if (mode === "up" && !name) { $("a-err").textContent = "Please enter your name."; return; }
+  $("a-go").disabled = true;
+  try {
+    if (mode === "up") {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { role: "counsellor", full_name: name } } });
+      if (error) throw error;
+      if (!data.session) { $("a-err").textContent = "Account created. Check your email to confirm it, then sign in (or turn off email confirmation in Supabase for the demo)."; return; }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+    await boot();
+  } catch (e) { $("a-err").textContent = e.message || "Something went wrong."; }
+  finally { $("a-go").disabled = false; }
+};
+$("a-forgot").onclick = async (e) => {
+  e.preventDefault();
+  const email = $("a-email").value.trim();
+  if (!email) { $("a-err").textContent = "Type your email above first, then click 'Forgot password?'."; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href.split("#")[0] });
+  $("a-err").textContent = error ? error.message : "If that email has an account, a reset link is on its way.";
+};
+$("np-go").onclick = async () => {
+  const pw = $("np-pass").value; $("np-err").textContent = "";
+  if (pw.length < 8) { $("np-err").textContent = "Please use at least 8 characters."; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { $("np-err").textContent = error.message; return; }
+  recovering = false; await boot();
+};
+$("signout").onclick = async () => { await sb.auth.signOut(); user = null; show("v-auth"); };
+
+async function boot() {
+  if (recovering) return;
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { show("v-auth"); return; }
+  user = data.session.user;
+  const prof = await sb.from("counsellors").select("id").eq("id", user.id);
+  if (!prof.data || !prof.data.length) {
+    await sb.auth.signOut(); show("v-auth");
+    $("a-err").textContent = "This is not a counsellor account. Students sign in on the student page.";
+    return;
+  }
+  $("who").textContent = "· " + (user.user_metadata?.full_name || user.email);
+  show("v-app"); showList(); await loadList();
+}
+
+/* ---------- list ---------- */
+function showList() { $("v-list").classList.remove("hidden"); $("v-detail").classList.add("hidden"); current = null; }
+async function loadList() {
+  const [cases, alerts] = await Promise.all([
+    sb.from("counsellor_caseload").select("*").order("created_at", { ascending: false }),
+    sb.from("alerts").select("id,checkin_id,student_id,level,created_at,note").is("acknowledged_at", null).order("created_at", { ascending: false })
+  ]);
+  const names = {};
+  const tb = $("cases"); tb.innerHTML = "";
+  (cases.data || []).forEach(s => {
+    names[s.student_id] = s.display_name;
+    const tr = el("tr", "click");
+    const n = el("td"); n.appendChild(el("b", null, s.display_name));
+    n.appendChild(el("div", "muted", [s.discipline, s.academic_year ? "Year " + s.academic_year : "", s.claimed_at ? "" : "INVITED - not signed up yet", s.active ? "" : "DEACTIVATED"].filter(Boolean).join(" · ")));
+    tr.appendChild(n);
+    tr.appendChild(el("td", null, s.checkin_count));
+    tr.appendChild(el("td", null, fmt(s.last_checkin_at)));
+    const st = el("td"); st.appendChild(badge(levelOf(s.latest_escalation, s.latest_analysed)));
+    if (s.latest_stress_state) st.appendChild(el("div", "muted", nice(s.latest_stress_state) + (s.latest_drift_state ? " / " + nice(s.latest_drift_state) : "")));
+    tr.appendChild(st);
+    tr.appendChild(el("td", null, s.open_alerts > 0 ? String(s.open_alerts) : "-"));
+    tr.onclick = () => openStudent(s);
+    tb.appendChild(tr);
+  });
+  $("cases-empty").textContent = (cases.data || []).length ? "" : "No students yet. Click \"Register a student\".";
+  const box = $("alerts-box"); box.innerHTML = "";
+  if (!(alerts.data || []).length) { box.textContent = "Nothing needs attention right now."; box.className = "muted"; }
+  else {
+    box.className = "";
+    alerts.data.forEach(a => {
+      const d = el("div", "alert-item");
+      d.appendChild(el("b", null, (names[a.student_id] || "Student") + " "));
+      d.appendChild(el("span", "muted", fmt(a.created_at)));
+      const r = el("div", "row"); r.style.marginTop = "6px";
+      const v = el("button", "sec", "View"); v.onclick = () => { const s = (cases.data || []).find(x => x.student_id === a.student_id); if (s) openStudent(s); };
+      const k = el("button", "sec", "Acknowledge...");
+      k.onclick = () => openAck(d, a, k);
+      r.append(v, k); d.appendChild(r); box.appendChild(d);
+    });
+  }
+}
+
+function openAck(card, a, btn) {
+  btn.disabled = true;
+  const f = el("div", "ack-form");
+  const sel = document.createElement("select");
+  [["reviewed","I reviewed it"],["contacted","I contacted the student"],["met_in_person","I met the student in person"],["referred","I referred the student"],["follow_up","Follow-up needed"]]
+    .forEach(([v,t]) => { const o = el("option", null, t); o.value = v; sel.appendChild(o); });
+  const ta = document.createElement("textarea"); ta.rows = 2; ta.maxLength = 2000; ta.placeholder = "Feedback / what you did (saved to your private notes)";
+  const err = el("div", "err");
+  const row = el("div", "row");
+  const ok = el("button", null, "Save & acknowledge"), cancel = el("button", "sec", "Cancel");
+  cancel.onclick = () => { f.remove(); btn.disabled = false; };
+  ok.onclick = async () => {
+    ok.disabled = true; err.textContent = "";
+    const text = ta.value.trim() || KIND[sel.value];
+    const n = await sb.from("counsellor_notes").insert({ student_id: a.student_id, checkin_id: a.checkin_id, kind: sel.value, note: text });
+    if (n.error) { err.textContent = n.error.message; ok.disabled = false; return; }
+    const u = await sb.from("alerts").update({ acknowledged_at: new Date().toISOString(), note: text }).eq("id", a.id);
+    if (u.error) { err.textContent = u.error.message; ok.disabled = false; return; }
+    loadList();
+  };
+  row.append(ok, cancel); f.append(sel, ta, err, row); card.appendChild(f);
+}
+
+/* ---------- register ---------- */
+$("new-btn").onclick = () => { $("reg-form").classList.remove("hidden"); $("code-reveal").classList.add("hidden"); $("r-name").focus(); };
+$("r-cancel").onclick = () => $("reg-form").classList.add("hidden");
+$("r-go").onclick = async () => {
+  const name = $("r-name").value.trim(); $("r-err").textContent = "";
+  if (!name) { $("r-err").textContent = "Please enter a name or nickname."; return; }
+  $("r-go").disabled = true;
+  const { data, error } = await sb.rpc("register_student", { p_display_name: name, p_discipline: $("r-disc").value.trim() || null, p_academic_year: $("r-year").value ? parseInt($("r-year").value, 10) : null });
+  $("r-go").disabled = false;
+  if (error) { $("r-err").textContent = error.message; return; }
+  $("reg-form").classList.add("hidden"); $("r-name").value = ""; $("r-disc").value = ""; $("r-year").value = "";
+  $("code-for").textContent = "Invite code for " + name;
+  $("code-val").textContent = data.invite_code; $("code-reveal").classList.remove("hidden");
+  loadList();
+};
+$("code-copy").onclick = () => navigator.clipboard?.writeText($("code-val").textContent);
+$("code-done").onclick = () => { $("code-val").textContent = ""; $("code-reveal").classList.add("hidden"); };
+
+/* ---------- detail ---------- */
+$("back").onclick = () => { showList(); loadList(); };
+async function openStudent(s) {
+  current = s; $("v-list").classList.add("hidden"); $("v-detail").classList.remove("hidden");
+  $("d-name").textContent = s.display_name;
+  $("d-meta").textContent = [s.discipline, s.academic_year ? "Year " + s.academic_year : "", "Registered " + fmt(s.created_at), s.claimed_at ? "Account created " + fmt(s.claimed_at) : "Invite not used yet", s.consent_at ? "Consent given " + fmt(s.consent_at) : "Consent not yet given"].filter(Boolean).join(" · ");
+  $("d-toggle").textContent = s.active ? "Deactivate student" : "Reactivate student";
+  $("d-reset").classList.toggle("hidden", !!s.claimed_at);
+  $("d-code").classList.add("hidden"); $("d-err").textContent = "";
+  $("d-list").textContent = "Loading…";
+  const { data, error } = await sb.from("checkins")
+    .select("*, analyses(*)").eq("student_id", s.student_id).not("seq", "is", null).order("seq", { ascending: false });
+  if (error) { $("d-list").textContent = error.message; return; }
+  curRows = data;
+  await loadNotes();
+}
+async function loadNotes() {
+  const n = await sb.from("counsellor_notes").select("*").eq("student_id", current.student_id).order("created_at", { ascending: false });
+  curNotes = n.data || [];
+  const picker = $("n-checkin"); picker.innerHTML = '<option value="">General note</option>';
+  curRows.forEach(r => { const o = el("option", null, "Check-in #" + r.seq + " (" + fmt(r.submitted_at) + ")"); o.value = r.id; picker.appendChild(o); });
+  renderNotes(); renderChart(curRows); renderCheckins(curRows);
+}
+function renderNotes() {
+  const box = $("n-list"); box.innerHTML = "";
+  if (!curNotes.length) { box.appendChild(el("div", "muted", "No notes yet.")); return; }
+  curNotes.forEach(n => {
+    const d = el("div", "note-item");
+    const ci = curRows.find(r => r.id === n.checkin_id);
+    d.appendChild(el("div", "meta", fmt(n.created_at) + " · " + (KIND[n.kind] || "Note") + (ci ? " · check-in #" + ci.seq : "")));
+    d.appendChild(el("div", null, n.note)); d.lastChild.style.whiteSpace = "pre-wrap";
+    const del = el("button", "sec", "Delete"); del.style.marginTop = "6px"; del.style.padding = "3px 10px";
+    del.onclick = async () => { if (!confirm("Delete this note?")) return; await sb.from("counsellor_notes").delete().eq("id", n.id); loadNotes(); };
+    d.appendChild(del); box.appendChild(d);
+  });
+}
+$("n-add").onclick = async () => {
+  const text = $("n-text").value.trim(); $("n-err").textContent = "";
+  if (!text) { $("n-err").textContent = "Please write a note first."; return; }
+  $("n-add").disabled = true;
+  const { error } = await sb.from("counsellor_notes").insert({ student_id: current.student_id, checkin_id: $("n-checkin").value || null, kind: $("n-kind").value, note: text });
+  $("n-add").disabled = false;
+  if (error) { $("n-err").textContent = error.message; return; }
+  $("n-text").value = ""; loadNotes();
+};
+$("d-reset").onclick = async () => {
+  if (!confirm("Issue a new invite code? The previous invite will stop working.")) return;
+  const { data, error } = await sb.rpc("reissue_invite", { p_student_id: current.student_id });
+  if (error) { $("d-err").textContent = error.message; return; }
+  $("d-code-val").textContent = data.invite_code; $("d-code").classList.remove("hidden");
+};
+$("d-toggle").onclick = async () => {
+  const next = !current.active;
+  if (!next && !confirm("Deactivate this student? They will no longer be able to sign in.")) return;
+  const { error } = await sb.from("students").update({ active: next }).eq("id", current.student_id);
+  if (error) { $("d-err").textContent = error.message; return; }
+  current.active = next; $("d-toggle").textContent = next ? "Deactivate student" : "Reactivate student";
+};
+
+function renderChart(rows) {
+  const box = $("d-chart"); box.innerHTML = "";
+  const pts = rows.slice().reverse().filter(r => r.stress_label != null);
+  if (!pts.length) { box.textContent = "No check-ins yet."; return; }
+  const NS = "http://www.w3.org/2000/svg", W = 640, H = 180, L = 30, R = 14, T = 12, B = 26;
+  const svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "chart");
+  const mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const x = i => L + (pts.length === 1 ? 0 : i * (W - L - R) / (pts.length - 1));
+  const y = v => T + (10 - v) * (H - T - B) / 9;
+  [1, 5, 10].forEach(v => { svg.appendChild(mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#E4E8E6" })); const t = mk("text", { x: L - 6, y: y(v) + 3, "text-anchor": "end", "font-size": 10, fill: "#6B7A80" }); t.textContent = v; svg.appendChild(t); });
+  svg.appendChild(mk("polyline", { points: pts.map((r, i) => `${x(i)},${y(r.stress_label)}`).join(" "), fill: "none", stroke: "#2F7A6F", "stroke-width": 2, opacity: .5 }));
+  const col = { support: "#C0483D", notice: "#C98A1B", calm: "#2F7A6F", none: "#B8C2BF" };
+  pts.forEach((r, i) => svg.appendChild(mk("circle", { cx: x(i), cy: y(r.stress_label), r: 5, fill: col[levelOf(r.analyses?.escalation, !!r.analyses)], stroke: "#fff", "stroke-width": 1.5 })));
+  pts.forEach((r, i) => { if (curNotes.some(n => n.checkin_id === r.id)) svg.appendChild(mk("rect", { x: x(i) - 4, y: H - B + 8, width: 8, height: 8, fill: "#1F2D33", transform: `rotate(45 ${x(i)} ${H - B + 12})` })); });
+  box.appendChild(svg);
+  box.appendChild(el("div", "muted", "Self-rated stress (1-10). Dot colour = system assessment: green steady, amber monitor, red support suggested. Dark diamond below = you wrote a note on that check-in."));
+}
+
+function renderCheckins(rows) {
+  const box = $("d-list"); box.innerHTML = ""; box.className = "";
+  if (!rows.length) { box.textContent = "No check-ins yet."; box.className = "muted"; return; }
+  rows.forEach(r => {
+    const a = r.analyses; const lvl = levelOf(a?.escalation, !!a);
+    const d = el("details"); const sm = el("summary");
+    sm.append("#" + r.seq + " · " + fmt(r.submitted_at) + " · stress " + r.stress_label + "/10 · "); sm.appendChild(badge(r.status === "done" ? lvl : "none"));
+    if (r.status !== "done") sm.append(" " + r.status);
+    d.appendChild(sm);
+    d.appendChild(el("h3", null, "What the student wrote")); d.appendChild(el("pre", null, r.self_talk_text || "-"));
+    // Voice note: player + transcript, right under the written text
+    d.appendChild(el("h3", null, "In their own voice"));
+    if (r.has_audio && r.audio_path) {
+      const slot = el("div", "muted", "Loading recording...");
+      d.appendChild(slot);
+      let loaded = false;
+      const loadAudio = async () => {
+        if (loaded) return; loaded = true;
+        const { data, error } = await sb.storage.from(BUCKET_NAME).createSignedUrl(r.audio_path, 3600);
+        if (error) { slot.textContent = "Could not load the recording (" + error.message + ")"; loaded = false; return; }
+        const au = document.createElement("audio"); au.controls = true; au.preload = "none"; au.style.width = "100%"; au.src = data.signedUrl;
+        slot.replaceWith(au);
+      };
+      d.addEventListener("toggle", () => { if (d.open) loadAudio(); });
+      const tr = a && a.transcript ? a.transcript.trim() : "";
+      d.appendChild(el("div", "muted", "Transcript (automatic, may contain errors)"));
+      d.appendChild(el("pre", null, tr || (a ? "No clear speech was detected in the recording, so nothing was transcribed." : "The transcript will appear here once the analysis finishes.")));
+      if (a && a.speech_features && !tr) { /* analysed but empty */ }
+    } else {
+      d.appendChild(el("div", "muted", "No voice recording for this check-in."));
+    }
+    d.appendChild(el("div", "muted", [r.activity_type && nice(r.activity_type), r.workload_level && r.workload_level + " workload", r.linked_to_event ? "linked to an event" : ""].filter(Boolean).join(" · ")));
+    if (r.status === "failed") d.appendChild(el("div", "err", "Analysis failed: " + (r.processing_error || "unknown error")));
+    if (a) {
+      d.appendChild(el("h3", null, "Counsellor report")); d.appendChild(el("pre", null, a.counselor_report || "-"));
+      const tags = el("div");
+      [["Stress state", a.primary_stress_state], ["Drift state", a.primary_drift_state], ["Escalation", a.escalation], ["Progression", a.progression]].forEach(([k, v]) => v && tags.appendChild(el("span", "tag", k + ": " + nice(v).replace(/ Progression$/, ""))));
+      d.appendChild(tags);
+      if (a.recommended_actions?.length) { d.appendChild(el("h3", null, "Recommended actions")); a.recommended_actions.forEach(x => d.appendChild(el("span", "tag", nice(x)))); }
+      d.appendChild(el("h3", null, "Message the student saw")); d.appendChild(el("pre", null, a.student_message || "-"));
+      const ev = el("details"); ev.appendChild(el("summary", null, "Why? Rules that fired & evidence"));
+      ev.appendChild(el("pre", null, JSON.stringify({ fired_rules: a.fired_rules, evidence_phrases: a.evidence_phrases, indicators: a.inferred_indicators, states: a.inferred_states, state_conflicts: a.state_conflicts, ontology_hash: a.ontology_hash }, null, 2)));
+      d.appendChild(ev);
+    }
+    const mine = curNotes.filter(n => n.checkin_id === r.id);
+    if (mine.length) { d.appendChild(el("h3", null, "Your notes on this check-in")); mine.forEach(n => d.appendChild(el("pre", null, (KIND[n.kind] || "Note") + " - " + fmt(n.created_at) + "\n" + n.note))); }
+    const addn = el("button", "sec", "Add a note about this check-in");
+    addn.onclick = () => { $("n-checkin").value = r.id; $("n-text").focus(); $("n-text").scrollIntoView({ behavior: "smooth", block: "center" }); };
+    d.appendChild(addn); d.appendChild(document.createTextNode(" "));
+    box.appendChild(d);
+  });
+}
+
+/* ---------- init ---------- */
+if (!CONFIGURED) { $("config-warning").classList.remove("hidden"); show("v-auth"); }
+else {
+  if (/type=recovery/.test(window.location.hash)) { recovering = true; show("v-newpass"); }
+  sb.auth.onAuthStateChange((event) => { if (event === "PASSWORD_RECOVERY") { recovering = true; show("v-newpass"); } });
+  boot();
+}
+</script>
+</body>
+</html>
