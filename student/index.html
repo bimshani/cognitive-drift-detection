@@ -489,7 +489,7 @@
       <h2 class="title">Before you begin</h2>
       <p class="subtitle">A short check-in about how your studies are going. Please read this once.</p>
       <div class="consent-box">
-        <strong>What this is.</strong> You'll answer a few quick questions, write a few sentences, and — if you like —
+        <strong>What this is.</strong> You'll answer a few quick questions, write a few sentences, and if you like
         record a short voice note. A computer-based system reads your responses and gives you a supportive note, and it
         looks for early signs of academic stress. It is <strong>not a medical or clinical tool</strong> and it does not
         give a diagnosis.
@@ -519,7 +519,7 @@
     <div class="card">
       <p class="hello" id="home-hello">Hi</p>
       <h2 class="title">How are things going?</h2>
-      <p class="subtitle" style="margin-bottom:8px;">Check in whenever you like — after a study session, an exam or an assignment is a good time.</p>
+      <p class="subtitle" style="margin-bottom:8px;">Check in whenever you like (after a study session, an exam or an assignment is a good time).</p>
       <button class="btn-primary" id="start-checkin-btn" style="margin-top:12px;">Start a check-in</button>
       <div class="error-text" id="home-error"></div>
 
@@ -586,7 +586,7 @@
       <!-- B: stress slider -->
       <div class="substep" data-step="B">
         <h2 class="title">How are you feeling today?</h2>
-        <p class="subtitle">Move the slider to where it feels right — there's no wrong answer.</p>
+        <p class="subtitle">Move the slider to where it feels right, there's no wrong answer.</p>
         <div class="slider-wrap">
           <div class="slider-value" id="stress-value">5</div>
           <input type="range" id="stress-slider" min="1" max="10" value="5" />
@@ -601,7 +601,7 @@
       <!-- C: self-talk -->
       <div class="substep" data-step="C">
         <h2 class="title">What's on your mind?</h2>
-        <p class="subtitle">Write a little about how your studies have been going lately — anything at all. Be as honest as you like.</p>
+        <p class="subtitle">Write a little about how your studies have been going lately, anything at all. Be as honest as you like.</p>
         <div class="lang-note">Please write your response in English.</div>
         <textarea id="self-talk-text" placeholder="I've been feeling..." maxlength="4000"></textarea>
         <div class="field-hint" id="text-hint">A few sentences is plenty.</div>
@@ -636,7 +636,7 @@
       <!-- E: checklist -->
       <div class="substep" data-step="E">
         <h2 class="title">In your recent study sessions...</h2>
-        <p class="subtitle">Tap anything that's applied to you — there's no minimum or maximum.</p>
+        <p class="subtitle">Tap anything that's applied to you, there's no minimum or maximum.</p>
         <div id="checklist-container"></div>
         <div class="step-nav">
           <button class="btn-back" data-back="D">Back</button>
@@ -653,7 +653,7 @@
     <div class="card center">
       <div class="spinner"></div>
       <h2 class="title">Saving your check-in…</h2>
-      <p class="subtitle">Please don't close this page — this only takes a moment.</p>
+      <p class="subtitle">Please don't close this page, this only takes a moment.</p>
     </div>
   </section>
 
@@ -677,7 +677,7 @@
       </div>
       <div id="result-support" class="support-card hidden">
         <b>It looks like you're carrying a lot right now.</b><br />
-        We'd encourage you to talk to someone soon — you don't have to sort this out alone. Your counsellor can see this
+        We'd encourage you to talk to someone soon. You don't have to sort this out alone. Your counsellor can see this
         check-in, and you can also reach the <b>KDU Student Counselling Unit</b> through your faculty office or student
         portal. If you ever feel unsafe, please contact a trusted person or emergency services right away.
       </div>
@@ -706,7 +706,7 @@ const POLL_MAX_TRIES = 40;           // ~2 minutes of waiting for the analysis
 const CONFIGURED = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_");
 // NB: the client is called `sb`, not `supabase` - the CDN library already owns the global name `supabase`.
 const sb = CONFIGURED
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } })
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "cd-student-auth" } })
   : null;
 if (!CONFIGURED) document.getElementById("config-warning").classList.remove("hidden");
 
@@ -870,7 +870,7 @@ async function afterAuth(silent) {
   try {
     const res = await rpc("student_me", {});
     if (!res || !res.ok) {
-      await sb.auth.signOut();
+      await sb.auth.signOut({ scope: "local" });
       if (!silent) $("gate-error").textContent = "This account isn't linked to an active student record. Please ask your counsellor.";
       showScreen("screen-gate"); return;
     }
@@ -940,7 +940,7 @@ function renderProgress(rows) {          // rows are newest first
     p.className = "chart-empty";
     p.textContent = chrono.length === 0
       ? "Your progress will appear here after your first check-ins."
-      : "One check-in so far — your trend will appear after the next one.";
+      : "One check-in so far. Your trend will appear after the next one.";
     holder.appendChild(p);
   } else {
     holder.appendChild(buildChart(chrono));
@@ -1075,7 +1075,7 @@ $("self-talk-text").addEventListener("input", updateTextNext);
 function updateTextNext() {
   const len = $("self-talk-text").value.trim().length;
   $("text-next-btn").disabled = len < 10;
-  $("text-hint").textContent = len < 10 ? "A few sentences is plenty — just a little more to continue." : "Thank you — that's enough to continue, add more if you'd like.";
+  $("text-hint").textContent = len < 10 ? "A few sentences is plenty, just a little more to continue." : "Thank you - that's enough to continue, add more if you'd like.";
 }
 
 // Step D: voice (optional)
@@ -1128,7 +1128,7 @@ $("voice-file-input").addEventListener("change", async e => {
     ctx.close();
     const secs = decoded.duration;
     if (secs < MIN_RECORDING_SECONDS) {
-      hint.textContent = `That file is only ${Math.round(secs)}s — please use at least ${MIN_RECORDING_SECONDS}s.`;
+      hint.textContent = `That file is only ${Math.round(secs)}s, please use at least ${MIN_RECORDING_SECONDS}s.`;
       return;
     }
     const keep = Math.min(decoded.length, Math.floor(MAX_RECORDING_SECONDS * decoded.sampleRate));
@@ -1142,8 +1142,8 @@ $("voice-file-input").addEventListener("change", async e => {
     const m = Math.floor(state.recordingDuration / 60), sec = Math.floor(state.recordingDuration % 60).toString().padStart(2, "0");
     $("rec-timer").textContent = `${m}:${sec}`;
     hint.textContent = secs > MAX_RECORDING_SECONDS
-      ? `File added (first ${MAX_RECORDING_SECONDS}s used) — you're all set`
-      : "File added — you're all set";
+      ? `File added (first ${MAX_RECORDING_SECONDS}s used), you're all set`
+      : "File added you're all set";
     hint.classList.add("rec-status-ok");
     updateVoiceNext();
   } catch (err) {
@@ -1205,7 +1205,7 @@ async function toggleRecording() {
       state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
       document.getElementById("rec-hint").textContent =
-        "We couldn't hear you — please allow microphone access and tap the mic again.";
+        "We couldn't hear you, please allow microphone access and tap the mic again.";
       return;
     }
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1269,12 +1269,12 @@ function stopRecording() {
   state.recStartTime = null;
 
   if (state.recordingDuration >= MIN_RECORDING_SECONDS) {
-    document.getElementById("rec-hint").textContent = "Recorded — you're all set";
+    document.getElementById("rec-hint").textContent = "Recorded, you're all set";
     document.getElementById("rec-hint").classList.add("rec-status-ok");
     updateVoiceNext();
   } else {
     document.getElementById("rec-hint").textContent =
-      `That was only ${Math.round(state.recordingDuration)}s — please record at least ${MIN_RECORDING_SECONDS}s. Tap the mic to try again.`;
+      `That was only ${Math.round(state.recordingDuration)}s, please record at least ${MIN_RECORDING_SECONDS}s. Tap the mic to try again.`;
     updateVoiceNext();
   }
 }

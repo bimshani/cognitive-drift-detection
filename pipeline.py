@@ -1,33 +1,18 @@
 # pipeline.py
-# NLP Feature Extraction Pipeline
-# Cognitive Drift and Academic Stress Detection
-# KDU Research — NTPGB Upethra D/BCS/23/0021
 #
 # Models used:
 #
 # Emotion Detection:
-# j-hartmann/emotion-english-distilroberta-base
-# Hartmann et al. (2022)
-# Trained on 6 diverse datasets including
-# social media text
-# Returns 7 emotion labels: anger, disgust,
-# fear, joy, neutral, sadness, surprise
-# Fear and sadness map to stress indicators
+# j-hartmann/emotion-english-distilroberta-base Hartmann et al. (2022).Trained on 6 diverse datasets including social media text
+# Returns 7 emotion labels: anger, disgust, fear, joy, neutral, sadness, surprise, fear and sadness map to stress indicators
 #
 # Zero Shot Classification:
-# facebook/bart-large-mnli
-# Lewis et al. (2020)
-# Validated for mental health symptom
-# classification in published research
+# facebook/bart-large-mnli - Lewis et al. (2020) Validated for mental health symptom classification in published research
 #
-# Absolutist Term Detection:
-# Rule based word list
-# Al-Mosaiwi and Johnstone (2018)
-# Validated marker for anxiety and depression
+# Absolutist Term Detection: Rule based word list
+# Al-Mosaiwi and Johnstone (2018): Validated marker for anxiety and depression
 #
-# Negative Emotion Lexicon:
-# Based on NRC Word Emotion Lexicon approach
-# Mohammad and Turney (2013)
+# Negative Emotion Lexicon: Based on NRC Word Emotion Lexicon approach by Mohammad and Turney (2013)
 
 import os
 import spacy
@@ -37,16 +22,12 @@ import wave
 import numpy as np
 from transformers import pipeline as hf_pipeline
 
-# ─────────────────────────────────────────────
 # Load models
-# ─────────────────────────────────────────────
-
 print("Loading NLP models...")
 
 nlp = spacy.load("en_core_web_sm") # Load spaCy English model for tokenization and lemmatization
 
-# Emotion detection model
-# Trained on social media text which is closer to student self-talk domain, No login required
+# Emotion detection model- Trained on social media text which is closer to student self-talk domain
 emotion_model = hf_pipeline(
     "text-classification",
     model="j-hartmann/emotion-english-distilroberta-base",
@@ -55,8 +36,7 @@ emotion_model = hf_pipeline(
     max_length=512
 )
 
-# Zero shot classification
-# Validated for mental health NLP tasks
+# Zero shot classification - Validated for mental health NLP tasks
 zero_shot_model = hf_pipeline(
     "zero-shot-classification",
     model="facebook/bart-large-mnli"
@@ -64,16 +44,7 @@ zero_shot_model = hf_pipeline(
 
 print("Models loaded successfully")
 
-# ─────────────────────────────────────────────
 # Validated word lists
-# ─────────────────────────────────────────────
-
-# Both lists now live in lexicons.py so that explanation.py can
-# reuse them for evidence extraction without importing this module
-# (which would load the transformer models as a side effect).
-# The contents are unchanged apart from removing a duplicate
-# "nothing" entry, which was causing that one word to be counted
-# twice by get_absolutist_term_count().
 from lexicons import (
     ABSOLUTIST_TERMS,
     NEGATIVE_EMOTION_TERMS,
@@ -82,23 +53,16 @@ from lexicons import (
     FILLER_TERMS,
 )
 
-# ─────────────────────────────────────────────
 # SENTIMENT SCORE
 # Using emotion detection model
-# ─────────────────────────────────────────────
-
 # "legacy": (positive - negative) / (positive + negative), the original formula.
 # "confidence": neutral share kept in the denominator (see _sentence_sentiment).
-# Switch with the environment variable SENTIMENT_MODE. Default stays "legacy"
-# until sentiment_check.py shows the other mode is better on your data.
 SENTIMENT_MODE = os.environ.get("SENTIMENT_MODE", "legacy").lower()
 
 
 def _sentence_sentiment(text):
-    """Sentiment of ONE short piece of text (-1.0 to +1.0).
-    Same formula as before: weighted negative emotions against positive
-    ones, ignoring the 'neutral' label. Kept for single sentences only,
-    which is the length the emotion model was trained on."""
+    """Sentiment of ONE short piece of text (-1.0 to +1.0). Same formula as before: weighted negative emotions against positive
+    ones, ignoring the 'neutral' label. Kept for single sentences only, which is the length the emotion model was trained on."""
     results = emotion_model(text)[0]
     emotion_scores = {item["label"]: item["score"] for item in results}
     negative = (
@@ -115,9 +79,8 @@ def _sentence_sentiment(text):
     if total == 0:
         return 0.0
     if SENTIMENT_MODE == "confidence":
-        # Keep the neutral share in the denominator, so a sentence the model
-        # calls mostly neutral scores near 0 instead of being pushed to -1
-        # by a small leftover of fear or sadness.
+        # Keep the neutral share in the denominator, so a sentence the model calls mostly neutral scores near 0 instead of 
+        # being pushed to -1 by a small leftover of fear or sadness.
         return (positive - negative) / (total + emotion_scores.get("neutral", 0))
     return (positive - negative) / total
 
@@ -125,13 +88,9 @@ def _sentence_sentiment(text):
 def get_sentiment_score(text):
     """
     Returns float between -1.0 and +1.0.
-
-    The emotion model (Hartmann et al., 2022) was trained on short social
-    media posts. Given a long paragraph it can misjudge the overall emotion:
-    a calm, reflective 9-sentence stress paragraph was scored 61% joy and
-    came out positive. So the text is scored sentence by sentence and the
-    sentence scores are averaged. One-sentence input gives exactly the
-    same result as before.
+    The emotion model was trained on short social media posts. Given a long paragraph it can misjudge the overall emotion:
+    a calm, reflective 9-sentence stress paragraph was scored 61% joy and came out positive. So the text is scored sentence by 
+    sentence and the sentence scores are averaged. One-sentence input gives exactly the same result as before.
     """
     try:
         doc = nlp(text)
@@ -146,10 +105,7 @@ def get_sentiment_score(text):
 
 
 def get_emotion_scores(text):
-    """
-    Returns individual emotion scores
-    Used for richer feature extraction
-    beyond simple sentiment polarity
+    """   Returns individual emotion scores, Used for richer feature extraction beyond simple sentiment polarity
     """
     try:
         results = emotion_model(text)[0]
@@ -161,23 +117,13 @@ def get_emotion_scores(text):
         print(f"Emotion scores error: {e}")
         return {}
 
-# ─────────────────────────────────────────────
 # NEGATIVE LANGUAGE SCORE
-# ─────────────────────────────────────────────
-
 def get_negative_language_score(text):
     """
-    Returns float between 0.0 and 1.0
-
-    Based on the NRC Word Emotion Lexicon approach (Mohammad and
-    Turney, 2013), extended with common study-stress words.
-
-    Rule set v2 change: the score now counts every occurrence of a
-    listed term (word-boundary match, longest term first so "stressed"
-    is not also counted as "stress") and scales by 12. The old version
-    counted each listed word once and scaled by 5, so even strongly
-    distressed paragraphs scored 0.05 to 0.22 and R01 / R02 (which need
-    above 0.6 / 0.5) could not fire on ordinary writing. The factor 12
+    Returns float between 0.0 and 1.0. Based on the NRC Word Emotion Lexicon approach, extended with common study-stress words.
+    Rule set v2 change: the score now counts every occurrence of a listed term (word-boundary match, longest term first so "stressed"
+    is not also counted as "stress") and scales by 12. The old version  counted each listed word once and scaled by 5, so even strongly
+    distressed paragraphs scored 0.05 to 0.22 and R01 / R02 (which need above 0.6 / 0.5) could not fire on ordinary writing. The factor 12
     is provisional and should be calibrated on the evaluation sessions.
     """
     text_lower = text.lower()
@@ -198,16 +144,9 @@ _NEGATIVE_TERM_PATTERN = re.compile(
     ) + r")\w*"
 )
 
-# ─────────────────────────────────────────────
 # ABSOLUTIST TERM COUNT
-# ─────────────────────────────────────────────
-
 def get_absolutist_term_count(text):
-    """
-    Returns integer count of absolutist terms
-    Based on validated word list from
-    Al-Mosaiwi and Johnstone (2018)
-    Elevated absolutist term use is a validated
+    """Returns integer count of absolutist terms. Based on validated word list from. Elevated absolutist term use is a validated
     marker specific to anxiety and depression
     """
     text_lower = text.lower()
@@ -220,18 +159,11 @@ def get_absolutist_term_count(text):
     )
     return count
 
-# ─────────────────────────────────────────────
 # SHOULD STATEMENT COUNT
-# ─────────────────────────────────────────────
-
 def get_should_statement_count(text):
     """
-    Returns integer count of rigid-obligation terms
-    ("should", "must", "have to", ...), matched the
-    same word-boundary way as get_absolutist_term_count().
-    Feeds R32_ShouldStatements, which also requires
-    negative sentiment so ordinary planning language
-    ("I should study more") does not trigger it alone.
+    Returns integer count of rigid-obligation terms ("should", "must", "have to", ...), matched the same word-boundary way as get_absolutist_term_count().
+    Feeds R32_ShouldStatements, which also requires negative sentiment so ordinary planning language ("I should study more") does not trigger it alone.
     """
     text_lower = text.lower()
     count = sum(
@@ -243,18 +175,11 @@ def get_should_statement_count(text):
     )
     return count
 
-# ─────────────────────────────────────────────
 # PERSONALIZATION COUNT
-# ─────────────────────────────────────────────
-
 def get_personalization_count(text):
     """
-    Returns integer count of self-blame phrases
-    ("my fault", "i ruined", ...). Matched by
-    substring search since these are multi-word
-    phrases, the same approach as
-    get_negative_language_score() uses for its terms.
-    Feeds R33_Personalization.
+    Returns integer count of self-blame phrases ("my fault", "i ruined", ...). Matched by substring search since these are multi-word
+    phrases, the same approach as get_negative_language_score() uses for its terms. Feeds R33_Personalization.
     """
     text_lower = text.lower()
     count = sum(
@@ -263,20 +188,12 @@ def get_personalization_count(text):
     )
     return count
 
-# ─────────────────────────────────────────────
 # ZERO SHOT COGNITIVE DISTORTION SCORES
-# ─────────────────────────────────────────────
-
 def get_zero_shot_scores(text):
     """
-    Returns scores for helplessness,
-    catastrophizing, and overgeneralization
-    using zero shot classification.
-    CBT-grounded labels based on
-    Beck (1979) cognitive distortion taxonomy.
-    Lewis et al. (2020) BART model.
-    Validated for mental health NLP in
-    published research.
+    Returns scores for helplessness, catastrophizing, and overgeneralization using zero shot classification.
+    CBT-grounded labels based on Beck (1979) cognitive distortion taxonomy.
+    Lewis et al. (2020) BART model. Validated for mental health NLP in published research.
     """
     labels = [
         "helplessness and hopelessness about studies",
@@ -326,26 +243,17 @@ def get_zero_shot_scores(text):
             "overgeneralization_score": 0.0
         }
 
-# ─────────────────────────────────────────────
 # SUBJECT SPECIFIC DETECTION
-# ─────────────────────────────────────────────
-
 def is_subject_specific(text):
     """
-    Returns True if text refers to a specific
-    academic subject, task, or assessment
+    Returns True if text refers to a specific academic subject, task, or assessment
     """
     subject_keywords = [
-        "math", "maths", "mathematics", "physics",
-        "chemistry", "biology", "programming", "code",
-        "coding", "algorithm", "data structure",
-        "database", "network", "assignment", "exam",
-        "test", "quiz", "project", "thesis", "essay",
-        "report", "lecture", "module", "subject",
-        "course", "lab", "practical", "tutorial",
-        "computing", "engineering", "science",
-        "software", "hardware", "circuit", "calculus",
-        "statistics", "research", "dissertation"
+        "math", "maths", "mathematics", "physics","chemistry", "biology", "programming", "code",
+        "coding", "algorithm", "data structure", "database", "network", "assignment", "exam",
+        "test", "quiz", "project", "thesis", "essay", "report", "lecture", "module", "subject",
+        "course", "lab", "practical", "tutorial", "computing", "engineering", "science",
+        "software", "hardware", "circuit", "calculus","statistics", "research", "dissertation"
     ]
     text_lower = text.lower()
     return any(
@@ -353,18 +261,11 @@ def is_subject_specific(text):
         for kw in subject_keywords
     )
 
-# ─────────────────────────────────────────────
 # CONFIDENCE FILTER
-# ─────────────────────────────────────────────
-
 def apply_confidence_filter(features):
     """
-    Suppresses distortion scores when overall
-    sentiment is not negative.
-    Prevents false positive inferences for
-    neutral or positive student text.
-    Only assert distortion scores when
-    student text is clearly negative.
+    Suppresses distortion scores when overall sentiment is not negative. Prevents false positive inferences for
+    neutral or positive student text. Only assert distortion scores when student text is clearly negative.
     """
     is_negative = features["sentiment_score"] < -0.3
 
@@ -377,30 +278,17 @@ def apply_confidence_filter(features):
 
 # ─────────────────────────────────────────────
 # SPEECH FEATURE EXTRACTION
+# This section takes a real recording raw WAV bytes, as returned by Streamlit's st.audio_input widget and derives
+# a transcript, pace, hesitation count, and a coarse tone signal from it directly.
 #
-# Previously a stub: speech_pace and hesitation_count were supplied
-# by hand rather than measured, so the system was bimodal in
-# practice despite claiming three modalities (HANDOVER.md open
-# issue 2). This section takes a real recording — raw WAV bytes,
-# as returned by Streamlit's st.audio_input widget — and derives
-# a transcript, pace, hesitation count, and a coarse tone signal
-# from it directly.
-#
-# No new heavy dependency is added. st.audio_input already
-# produces a standard PCM WAV container, so Python's built-in
-# `wave` module reads it without ffmpeg. Resampling to the 16kHz
-# Whisper expects is done with a simple numpy linear interpolation
-# rather than pulling in librosa/torchaudio — adequate for speech
-# recognition, not broadcast-quality, and documented here as a
+# No new heavy dependency is added. st.audio_input already produces a standard PCM WAV container, so Python's built-in
+# `wave` module reads it without ffmpeg. Resampling to the 16kHz Whisper expects is done with a simple numpy linear interpolation
+# rather than pulling in librosa/torchaudio — adequate for speech recognition, not broadcast-quality, and documented here as a
 # scope decision rather than left silent.
-# ─────────────────────────────────────────────
 
-# Loaded lazily on first speech submission, not at module import
-# like the other three models. A text-only self-talk analysis
-# should not pay the cost of loading a fourth transformer model
-# it will never use.
+# Loaded lazily on first speech submission, not at module import like the other three models. A text-only self-talk analysis
+# should not pay the cost of loading a fourth transformer model it will never use.
 _asr_model = None
-
 
 def _get_asr_model():
     global _asr_model
@@ -415,8 +303,7 @@ def _get_asr_model():
 
 def _decode_wav_bytes(audio_bytes):
     """
-    Decode a WAV byte string into (samples, framerate, duration_seconds).
-    `samples` is a mono float32 numpy array scaled to [-1.0, 1.0].
+    Decode a WAV byte string into (samples, framerate, duration_seconds). `samples` is a mono float32 numpy array scaled to [-1.0, 1.0].
     Handles 8/16/32-bit PCM and mixes multi-channel audio down to mono.
     """
     with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
@@ -444,8 +331,7 @@ def _decode_wav_bytes(audio_bytes):
 
 def _resample_to_16k(samples, framerate, target=16000):
     """
-    Simple linear-interpolation resample to the sample rate Whisper
-    expects. Not sinc-quality, but sufficient for speech recognition
+    Simple linear-interpolation resample to the sample rate Whisper expects. Not sinc-quality, but sufficient for speech recognition
     and avoids adding librosa/torchaudio as a dependency.
     """
     if framerate == target or len(samples) == 0:
@@ -461,27 +347,11 @@ def _resample_to_16k(samples, framerate, target=16000):
 def _trim_silence(samples, framerate, threshold_ratio=0.03, pad_seconds=0.15,
                    frame_ms=20, absolute_silence_peak=0.02):
     """
-    Trims leading/trailing near-silence from a recording before it
-    reaches the ASR model.
+    Trims leading/trailing near-silence from a recording before it reaches the ASR model.
 
-    Root-cause fix for an observed failure mode: Whisper hallucinates
-    repeated boilerplate ("I'm going to stop at this time." looped
-    ~100 times) when fed a long stretch of trailing silence after
-    the speaker has actually finished — which is exactly what a
-    browser mic recording usually has, since people don't cut the
-    recording the instant they stop talking. Trimming that silence
-    out before transcription removes the input that triggers the
-    loop in the first place. get_hesitation_count() and
-    _collapse_repetition() only exist as reactive cleanup for
-    whatever this doesn't catch.
-
-    `absolute_silence_peak` catches a clip that is uniformly quiet
-    throughout (e.g. an empty/muted recording, or just mic noise
-    floor) — the relative threshold alone can't detect that case,
-    since with no louder segment to compare against, every frame
-    looks "voiced" relative to a peak that is itself just noise.
-
-    Returns (trimmed_samples, is_effectively_silent).
+    `absolute_silence_peak` catches a clip that is uniformly quiet  throughout (e.g. an empty/muted recording, or just mic noise
+    floor) the relative threshold alone can't detect that case, since with no louder segment to compare against, every frame
+    looks "voiced" relative to a peak that is itself just noise. Returns (trimmed_samples, is_effectively_silent).
     """
     if len(samples) == 0:
         return samples, True
@@ -513,14 +383,10 @@ def _trim_silence(samples, framerate, threshold_ratio=0.03, pad_seconds=0.15,
 
 def _collapse_repetition(text, max_repeats=2):
     """
-    Defensive cleanup for residual ASR repetition-loop hallucination
-    that _trim_silence() doesn't catch (e.g. the model looping on a
-    genuinely spoken phrase, not just trailing silence). Collapses a
-    sentence that repeats back-to-back more than `max_repeats` times
-    down to a single run of that length, rather than a full n-gram
-    dedup algorithm — enough to fix the pattern actually observed
-    ("I'm going to stop at this time." repeated ~100 times) without
-    over-engineering the general case.
+    Defensive cleanup for residual ASR repetition-loop hallucination that _trim_silence() doesn't catch (e.g. the model looping on a
+    genuinely spoken phrase, not just trailing silence). Collapses a sentence that repeats back-to-back more than `max_repeats` times
+    down to a single run of that length, rather than a full n-gram dedup algorithm — enough to fix the pattern actually observed
+    ("I'm going to stop at this time." repeated ~100 times) without over-engineering the general case.
     """
     if not text:
         return text
@@ -544,14 +410,12 @@ def _collapse_repetition(text, max_repeats=2):
 
 def transcribe_audio(samples, framerate):
     """
-    Runs the ASR model on already-resampled mono float32 samples.
-    Returns an empty string on any failure rather than raising, so a
-    bad recording degrades to "no speech modality" instead of
-    crashing the analysis.
+    Runs the ASR model on already-resampled mono float32 samples. Returns an empty string on any failure rather than raising, so a
+    bad recording degrades to "no speech modality" instead of crashing the analysis.
     """
     try:
         asr = _get_asr_model()
-        result = asr({"array": samples, "sampling_rate": framerate})
+        result = asr({"array": samples, "sampling_rate": framerate}, return_timestamps=True)
         return (result.get("text") or "").strip()
     except Exception as e:
         print(f"ASR error: {e}")
@@ -560,12 +424,9 @@ def transcribe_audio(samples, framerate):
 
 def compute_speech_pace(word_count, duration_seconds):
     """
-    Returns "Slow" / "Normal" / "Fast" from words-per-minute.
-    Thresholds (110 / 165 wpm) are a documented assumption based on
-    commonly cited conversational speech-rate ranges, not validated
-    against a normative corpus for this population — flagged the
-    same way as the other constants in HANDOVER.md open issue 4.
-    Consumed by R08_SlowedThinking and R20_ModerateDrift_Speech.
+    Returns "Slow" / "Normal" / "Fast" from words-per-minute. Thresholds (110 / 165 wpm) are a documented assumption based on
+    commonly cited conversational speech-rate ranges, not validated against a normative corpus for this population — flagged the
+    same way as the other constants in HANDOVER.md open issue 4. Consumed by R08_SlowedThinking and R20_ModerateDrift_Speech.
     """
     if duration_seconds <= 0:
         return "Normal"
@@ -579,12 +440,9 @@ def compute_speech_pace(word_count, duration_seconds):
 
 def get_hesitation_count(transcript):
     """
-    Returns the total number of filler/disfluency *occurrences* in
-    the transcript (e.g. "um" said three times counts as 3).
-    This differs deliberately from get_absolutist_term_count(),
-    which counts one hit per list entry regardless of repetition —
-    here, repetition itself is the hesitation signal R20 checks
-    for (hesitationCount > 3), not lexical variety.
+    Returns the total number of filler/disfluency *occurrences* in the transcript (e.g. "um" said three times counts as 3).
+    This differs deliberately from get_absolutist_term_count(), which counts one hit per list entry regardless of repetition —
+    here, repetition itself is the hesitation signal R20 checks for (hesitationCount > 3), not lexical variety.
     """
     text_lower = transcript.lower()
     count = 0
@@ -595,17 +453,12 @@ def get_hesitation_count(transcript):
 
 def compute_tone_indicator(samples, framerate):
     """
-    Coarse prosodic-flatness proxy: splits the recording into 50ms
-    frames, takes RMS energy per frame, and looks at the relative
-    variability of that energy across voiced frames. Low variability
-    is reported as "Monotone".
+    Coarse prosodic-flatness proxy: splits the recording into 50ms frames, takes RMS energy per frame, and looks at the relative
+    variability of that energy across voiced frames. Low variability is reported as "Monotone".
 
-    This is a simple energy-based heuristic, not real pitch/prosody
-    analysis (that would need a proper acoustic library) — an
-    honest first step rather than leaving tone entirely unmeasured.
-    It is currently descriptive only: no SWRL rule consumes
-    speech_hasToneIndicator yet, matching HANDOVER.md's list of
-    unreachable signals.
+    This is a simple energy-based heuristic, not real pitch/prosody analysis (that would need a proper acoustic library) — an
+    honest first step rather than leaving tone entirely unmeasured. It is currently descriptive only: no SWRL rule consumes
+    speech_hasToneIndicator yet, matching HANDOVER.md's list of unreachable signals.
     """
     if len(samples) == 0 or framerate <= 0:
         return "Normal"
@@ -626,15 +479,11 @@ def compute_tone_indicator(samples, framerate):
 
 def extract_speech_features(audio_bytes):
     """
-    Main speech entry point — takes raw WAV bytes from a recording
-    and returns a dict matching the speech_features contract in
-    HANDOVER.md section 4.1: transcribed_text, speech_pace,
-    tone_indicator, hesitation_count, plus the same six NLP scores
-    used for self-talk text (computed here on the transcript, via
+    Main speech entry point- takes raw WAV bytes from a recording and returns a dict matching the speech_features. transcribed_text, speech_pace,
+    tone_indicator, hesitation_count, plus the same six NLP scores used for self-talk text (computed here on the transcript, via
     the same functions, so text and speech are scored identically).
 
-    Returns None if the recording is unusable (unreadable, or too
-    short to be a meaningful utterance) — callers should treat that
+    Returns None if the recording is unusable (unreadable, or too short to be a meaningful utterance) — callers should treat that
     the same as "no speech provided".
     """
     try:
@@ -646,15 +495,11 @@ def extract_speech_features(audio_bytes):
     if duration < 0.3:
         return None
 
-    # Trim trailing/leading silence BEFORE transcription - see
-    # _trim_silence()'s docstring for why this matters (it is the
-    # actual fix for the Whisper repetition-loop hallucination, not
-    # just a nicety).
+    # Trim trailing/leading silence BEFORE transcription - 
     trimmed_samples, is_silent = _trim_silence(samples, framerate)
     if is_silent or (len(trimmed_samples) / framerate) < 0.3:
-        # Nothing resembling speech was recorded - treat the same as
-        # "no recording provided" rather than transcribing near-silence,
-        # which is exactly the input that triggers ASR hallucination.
+    # Nothing resembling speech was recorded - treat the same as "no recording provided" rather than transcribing near-silence,
+    #which is exactly the input that triggers ASR hallucination.
         return None
 
     speaking_duration = len(trimmed_samples) / framerate
@@ -662,8 +507,7 @@ def extract_speech_features(audio_bytes):
     transcript = transcribe_audio(samples_16k, sr_16k)
     transcript = _collapse_repetition(transcript)
 
-    # Pace is words-per-minute over actual speaking time, not the
-    # full (possibly silence-padded) recording length.
+    # Pace is words-per-minute over actual speaking time, not the full (possibly silence-padded) recording length.
     pace = compute_speech_pace(len(transcript.split()), speaking_duration)
     hesitation = get_hesitation_count(transcript)
     tone = compute_tone_indicator(trimmed_samples, framerate)
@@ -678,8 +522,7 @@ def extract_speech_features(audio_bytes):
             "catastrophizing_score": zero_shot["catastrophizing_score"],
             "overgeneralization_score": zero_shot["overgeneralization_score"],
         }
-        # Same confidence-filter policy applied to self-talk text,
-        # so speech and text distortion scores follow one rule.
+        # Same confidence-filter policy applied to self-talk text, so speech and text distortion scores follow one rule.
         speech_scores = apply_confidence_filter(speech_scores)
     else:
         speech_scores = {
@@ -702,7 +545,6 @@ def extract_speech_features(audio_bytes):
 
 # ─────────────────────────────────────────────
 # MAIN EXTRACTION FUNCTION
-# ─────────────────────────────────────────────
 
 def get_stress_statement_count(text):
     """Number of plain stress/strain words or phrases (stress, overwhelmed, anxious,
@@ -713,9 +555,7 @@ def get_stress_statement_count(text):
 
 def extract_features(text):
     """
-    Main function — takes raw student text
-    Returns all NLP feature scores as dictionary
-    ready to be written into the ontology
+    Main function — takes raw student text. Returns all NLP feature scores as dictionary ready to be written into the ontology
 
     Returns dict with:
         raw_text: str

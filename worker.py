@@ -1,19 +1,10 @@
 """
 Analysis worker for the live Cognitive Drift system.
 
-Polls Supabase for check-ins with status='pending', runs the SAME pipeline as the
-Streamlit prototype (NLP features -> speech features -> OWL/SWRL/Pellet reasoning ->
-explanation) and writes the result to `analyses` (and `alerts` when the ontology
-infers CounselorAlert_Output).
+Polls Supabase for check-ins with status='pending', runs the SAME pipeline as the prototype (NLP features -> speech features -> OWL/SWRL/Pellet reasoning ->
+explanation) and writes the result to `analyses` (and `alerts` when the ontology infers CounselorAlert_Output).
 
-Run it from the folder that holds pipeline.py / reasoner.py / explanation.py /
-cognitive_drift.owl (set SYSTEM_DIR if they live elsewhere). Needs Java for Pellet.
-
-  pip install supabase
-  set SUPABASE_URL=https://xxxx.supabase.co
-  set SUPABASE_SERVICE_KEY=<service_role key>      (SECRET - never put it in a web page)
-  python worker.py            # keep running
-  python worker.py --once     # process the queue once and exit
+Run it from the folder that holds pipeline.py / reasoner.py / explanation.py /cognitive_drift.owl (set SYSTEM_DIR if they live elsewhere). Needs Java for Pellet.
 """
 import os, sys, json, time, hashlib, traceback, argparse
 

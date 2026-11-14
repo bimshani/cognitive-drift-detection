@@ -152,7 +152,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_HJoM3eRJOqMFK_uQxC6NUg_cYH6wm9p";
 const BUCKET_NAME = "voice-recordings";
 const CONFIGURED = !SUPABASE_URL.startsWith("PASTE_") && !SUPABASE_ANON_KEY.startsWith("PASTE_");
 // client is `sb` (the CDN library owns the global name `supabase`)
-const sb = CONFIGURED ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const sb = CONFIGURED ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "cd-counsellor-auth" } }) : null;
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const LEVEL = { CounselorAlert_Output: "support", ResourceRecommendation_Output: "notice", StudentAwarenessMessage_Output: "notice" };
@@ -217,7 +217,7 @@ async function boot() {
   user = data.session.user;
   const prof = await sb.from("counsellors").select("id").eq("id", user.id);
   if (!prof.data || !prof.data.length) {
-    await sb.auth.signOut(); show("v-auth");
+    await sb.auth.signOut({ scope: "local" }); show("v-auth");
     $("a-err").textContent = "This is not a counsellor account. Students sign in on the student page.";
     return;
   }
@@ -444,6 +444,25 @@ else {
   if (/type=recovery/.test(window.location.hash)) { recovering = true; show("v-newpass"); }
   sb.auth.onAuthStateChange((event) => { if (event === "PASSWORD_RECOVERY") { recovering = true; show("v-newpass"); } });
   boot();
+  setInterval(refreshView, 10000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshView(); });
+}
+
+let refreshing = false;
+const rowSig = rows => JSON.stringify((rows || []).map(r => [r.id, r.status, Array.isArray(r.analyses) ? r.analyses.length : (r.analyses ? 1 : 0)]));
+async function refreshView() {
+  if (refreshing || !user || $("v-app").classList.contains("hidden")) return;
+  const active = document.activeElement;
+  if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+  if (document.querySelector(".ack-form")) return;
+  refreshing = true;
+  try {
+    if (!current) { await loadList(); return; }
+    const { data, error } = await sb.from("checkins")
+      .select("*, analyses(*)").eq("student_id", current.student_id).not("seq", "is", null).order("seq", { ascending: false });
+    if (!error && data && rowSig(data) !== rowSig(curRows)) { curRows = data; await loadNotes(); }
+  } catch (e) { console.error(e); }
+  finally { refreshing = false; }
 }
 </script>
 </body>

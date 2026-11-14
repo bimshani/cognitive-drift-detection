@@ -1,135 +1,86 @@
-# explanation.py
-# Explanation Generation Module
-# Cognitive Drift and Academic Stress Detection
-# KDU Research - NTPGB Upethra D/BCS/23/0021
-#
-# ---------------------------------------------------------------
-# WHAT THIS MODULE DOES
-#
+# explanation.py#
 # It turns the reasoner's output into three things:
-#
 #   1. a supportive, non-clinical message for the student
 #   2. a structured report for an academic counsellor
-#   3. evidence phrases quoted from the student's own words
-#
-# and writes all of it back into the ontology as an Explanation
-# individual, so a session is stored together with its own
-# justification. The declared-but-unused properties
-# (hasExplanation, evidencedBy, triggeredBy, supportedBy,
-# explanation_*) are populated here.
-#
-# ---------------------------------------------------------------
+#   3. evidence phrases quoted from the student's own words and writes all of it back into the ontology as an Explanation individual
+
 # DESIGN RULES
-#
-# 1. No inference happens here. Every claim traces back to a SWRL
-#    rule that Pellet entailed and that reasoner.replay_rule()
+# 1. No inference happens here. Every claim traces back to a SWRL rule that Pellet entailed and that reasoner.replay_rule()
 #    confirmed. This module only chooses words.
-#
-# 2. Nothing is diagnostic. The vocabulary below describes study
-#    behaviour and language patterns, never a person and never a
-#    condition. explanation_isClinicallyDiagnostic is asserted
-#    False on every Explanation individual.
-#
-# 3. Evidence is the student's own text. Phrases are quoted, not
-#    paraphrased, so the student can see exactly what the system
-#    responded to.
-# ---------------------------------------------------------------
+# 2. Nothing is diagnostic. The vocabulary below describes study  behaviour and language patterns, never a person and never a
+#    condition. explanation_isClinicallyDiagnostic is asserted. False on every Explanation individual.
+# 3. Evidence is the student's own text. Phrases are quoted, not paraphrased, so the student can see exactly what the system  responded to.
 
 import re
 
 from lexicons import ABSOLUTIST_TERMS, NEGATIVE_EMOTION_TERMS
 from reasoner import entity
 
-# -------------------------------------------------------------
 # VOCABULARY
-#
-# Indicator -> how it is described to a student (second person,
-# about the study session) and to a counsellor (observational).
-# -------------------------------------------------------------
-
+# Indicator -> how it is described to a student (second person, about the study session) and to a counsellor (observational).
 INDICATOR_WORDS = {
     # Academic stress indicators
     "ExamAnxiety_Ind": (
-        "worry that is centred on an upcoming assessment",
-        "Assessment-focused worry in self-talk",
+        "worry that is centred on an upcoming assessment", "Assessment-focused worry in self-talk",
     ),
     "DeadlinePressure_Ind": (
-        "pressure tied to a specific deadline",
-        "Negative language linked to a named upcoming event",
+        "pressure tied to a specific deadline", "Negative language linked to a named upcoming event",
     ),
     "PerceivedOverload_Ind": (
-        "a workload that is feeling larger than it is manageable",
-        "High reported workload combined with helplessness language",
+        "a workload that is feeling larger than it is manageable", "High reported workload combined with helplessness language",
     ),
     "HelplessnessAboutWorkload_Ind": (
-        "a sense of being stuck about where to start",
-        "Helplessness language together with reported task postponement",
+        "a sense of being stuck about where to start", "Helplessness language together with reported task postponement",
     ),
     "PhysicalStressComplaint_Ind": (
-        "physical signs such as headaches or disturbed sleep",
-        "Self-reported headache and sleep difficulty in the same session",
+        "physical signs such as headaches or disturbed sleep", "Self-reported headache and sleep difficulty in the same session",
     ),
     "SocialAcademicPressure_Ind": (
-        "comparison with how others seem to be doing",
-        "Peer-comparison content in self-talk",
+        "comparison with how others seem to be doing", "Peer-comparison content in self-talk",
     ),
     # Cognitive drift indicators
     "AttentionLoss_Ind": (
-        "difficulty holding your attention while studying",
-        "Self-reported focus difficulty and zoning out",
+        "difficulty holding your attention while studying", "Self-reported focus difficulty and zoning out",
     ),
     "WorkingMemoryLapse_Ind": (
-        "needing to re-read and losing the thread of what you read",
-        "Self-reported re-reading and mind going blank",
+        "needing to re-read and losing the thread of what you read", "Self-reported re-reading and mind going blank",
     ),
     "SlowedThinking_Ind": (
-        "thinking that feels slower than it usually does",
-        "Self-reported slowed thinking and difficulty thinking clearly",
+        "thinking that feels slower than it usually does", "Self-reported slowed thinking and difficulty thinking clearly",
     ),
     "WidespreadStrain_Ind": (
-        "difficulties showing up in several areas of your study life at once",
-        "Self-reported difficulties in three or more of the five checklist groups",
+        "difficulties showing up in several areas of your study life at once", "Self-reported difficulties in three or more of the five checklist groups",
     ),
     "AllOrNothingThinking_Ind": (
-        "all-or-nothing wording such as always or never",
-        "Elevated absolutist term use with strongly negative sentiment",
+        "all-or-nothing wording such as always or never", "Elevated absolutist term use with strongly negative sentiment",
     ),
     "Catastrophizing_Ind": (
-        "expecting the worst possible outcome",
-        "Worst-case framing with strongly negative sentiment",
+        "expecting the worst possible outcome", "Worst-case framing with strongly negative sentiment",
     ),
     "Overgeneralization_Ind": (
-        "drawing a general conclusion from one or two setbacks",
-        "Overgeneralisation with elevated absolutist term use",
+        "drawing a general conclusion from one or two setbacks", "Overgeneralisation with elevated absolutist term use",
     ),
     "EmotionalReasoning_Ind": (
-        "treating how something feels as proof of how it is",
-        "Very negative sentiment together with helplessness language",
+        "treating how something feels as proof of how it is", "Very negative sentiment together with helplessness language",
     ),
     "MentalFilter_Ind": (
-        "attention settling on what went wrong rather than what went well",
-        "Selective negative focus in self-talk",
+        "attention settling on what went wrong rather than what went well", "Selective negative focus in self-talk",
     ),
     "Personalization_Ind": (
-        "taking responsibility for things outside your control",
-        "Self-attribution of external outcomes",
+        "taking responsibility for things outside your control", "Self-attribution of external outcomes",
     ),
     "ShouldStatements_Ind": (
-        "rules about what you should be doing",
-        "Prescriptive self-directed language",
+        "rules about what you should be doing", "Prescriptive self-directed language",
     ),
     # Added in rule set v2 (behavioural checklist items that no rule used before)
     "MentalExhaustion_Ind": (
-        "feeling mentally worn out, together with restlessness or trouble staying focused",
-        "Self-reported mental exhaustion with restlessness or distractibility (B7 with B15 or B2)",
+        "feeling mentally worn out, together with restlessness or trouble staying focused", "Self-reported mental exhaustion with restlessness or distractibility (B7 with B15 or B2)",
     ),
     "Disengagement_Ind": (
-        "feeling like giving up on studying early",
-        "Self-reported early giving up with hopelessness about studying (B11 and B12)",
+        "feeling like giving up on studying early", "Self-reported early giving up with hopelessness about studying (B11 and B12)",
     ),
     "DistractionLapse_Ind": (
-        "getting distracted and forgetting things more than usual",
-        "Self-reported distractibility with forgetfulness (B2 and B5)",
+        "getting distracted and forgetting things more than usual", "Self-reported distractibility with forgetfulness (B2 and B5)",
     ),
 }
 
@@ -224,8 +175,7 @@ STUDENT_PROGRESSION = {
     "Improving_Progression": "Compared with your last check-in, things look a little lighter this time. Nice to see.",
 }
 
-# A student reading their own result may already be under pressure.
-# The full indicator list goes to the counsellor report; the student
+# A student reading their own result may already be under pressure. The full indicator list goes to the counsellor report; the student
 # sees the most important few.
 MAX_STUDENT_INDICATORS = 4
 
@@ -234,20 +184,14 @@ DISCLAIMER = (
     "diagnose, and its outputs are indicators rather than labels."
 )
 
-
-# -------------------------------------------------------------
 # EVIDENCE PHRASES - the student's own words
-# -------------------------------------------------------------
-
 def _sentences(text):
     parts = re.split(r"(?<=[.!?])\s+|\n+", text or "")
     return [part.strip() for part in parts if part.strip()]
 
 
 def evidence_phrases(text, limit=3):
-    """Quote the sentences that carry the language the rules reacted to.
-
-    Sentences are ranked by how many absolutist and negative-emotion
+    """Quote the sentences that carry the language the rules reacted to.  Sentences are ranked by how many absolutist and negative-emotion
     terms they contain, using the same lists pipeline.py scored with.
     """
     scored = []
@@ -277,10 +221,7 @@ def evidence_phrases(text, limit=3):
     return scored[:limit]
 
 
-# -------------------------------------------------------------
 # RULE TRACES
-# -------------------------------------------------------------
-
 def _confirmed(results, conclusion):
     return [
         rule
@@ -330,10 +271,7 @@ def indicator_traces(results):
     return traces
 
 
-# -------------------------------------------------------------
 # STUDENT-FACING MESSAGE
-# -------------------------------------------------------------
-
 def student_message(results, phrases=None):
     stress = results.get("primary_stress_state")
     drift = results.get("primary_drift_state")
@@ -370,8 +308,7 @@ def student_message(results, phrases=None):
             % STATE_WORDS[stress][0]
         )
 
-    # A student reading this may already be under pressure, so keep
-    # the list short. The counsellor report carries the full set.
+    # A student reading this may already be under pressure, so keep the list short. The counsellor report carries the full set.
     noticed = [
         INDICATOR_WORDS.get(name, (name, name))[0]
         for name in results.get("inferred_indicators", [])
@@ -398,8 +335,7 @@ def student_message(results, phrases=None):
 
     prog = results.get("progression")
     if "RisingDrift_Status" in results.get("session_statuses", []) and prog != "Worsening_Progression":
-        # The progression label follows stress only. Do not tell a student
-        # things look lighter when concentration signs went up.
+        # The progression label follows stress only. Do not tell a student things look lighter when concentration signs went up.
         lines.append(
             "Compared with your last check-in, the signs affecting your "
             "concentration look a little stronger this time"
@@ -419,10 +355,7 @@ def student_message(results, phrases=None):
     return "\n\n".join(lines)
 
 
-# -------------------------------------------------------------
 # COUNSELLOR-FACING REPORT
-# -------------------------------------------------------------
-
 def counselor_report(results, phrases=None):
     out = []
     add = out.append
@@ -537,11 +470,7 @@ def counselor_report(results, phrases=None):
     add(DISCLAIMER)
     return "\n".join(out)
 
-
-# -------------------------------------------------------------
 # WRITING THE EXPLANATION BACK INTO THE ONTOLOGY
-# -------------------------------------------------------------
-
 def _input_signals(onto, rule):
     """Individuals bound in a rule trace that are InputSignals."""
     signal_class = entity(onto, "InputSignal")
@@ -560,11 +489,8 @@ def _input_signals(onto, rule):
 
 
 def write_to_ontology(results, student_text, counselor_text, phrases):
-    """Create the Explanation individual and the provenance links.
-
-    Populates hasExplanation, explanation_*, evidencedBy (indicator
-    -> the input signal that produced it), triggeredBy (state ->
-    the indicators in the rule that produced it) and supportedBy
+    """Create the Explanation individual and the provenance links. Populates hasExplanation, explanation_*, evidencedBy (indicator
+    -> the input signal that produced it), triggeredBy (state -> the indicators in the rule that produced it) and supportedBy
     (state -> input signals).
     """
     session = results.get("_session")
@@ -630,17 +556,11 @@ def write_to_ontology(results, student_text, counselor_text, phrases):
 
 
 
-# -------------------------------------------------------------
 # SAFETY WORDING
 #
-# A short, deliberately narrow list of phrases that suggest a student
-# may be in more distress than a study-stress tool should judge alone.
-# A match does NOT mean anything is diagnosed. It only makes the
-# counsellor see the check-in promptly and read the student's own words.
-# The list needs review by the supervisor / university counselling
-# service before real use; it will miss indirect wording.
-# -------------------------------------------------------------
-
+# A short, deliberately narrow list of phrases that suggest a student may be in more distress than a study-stress tool should judge alone.
+# A match does NOT mean anything is diagnosed. It only makes the counsellor see the check-in promptly and read the student's own words.
+# The list needs review by the supervisor / university counselling service before real use; it will miss indirect wording.
 SAFETY_PATTERNS = [
     r"\bwant to disappear\b", r"\bwish i could disappear\b",
     r"\b(?:can'?t|cannot|can not) go on (?:like this|anymore|any more|living)\b",
@@ -670,9 +590,7 @@ def safety_wording(text):
 # -------------------------------------------------------------
 
 def build_explanation(results, raw_text=None, write_back=True, self_rating=None):
-    """Turn reasoner results into student and counsellor output.
-
-    `raw_text` is the student's self-talk. If omitted it is taken
+    """Turn reasoner results into student and counsellor output. `raw_text` is the student's self-talk. If omitted it is taken
     from the text the reasoner asserted into the ontology.
     """
     if not results.get("consistent", False):
@@ -732,10 +650,7 @@ def build_explanation(results, raw_text=None, write_back=True, self_rating=None)
     }
 
 
-# -------------------------------------------------------------
 # SELF TEST
-# -------------------------------------------------------------
-
 if __name__ == "__main__":
     import reasoner
 

@@ -1,57 +1,19 @@
 # reasoner.py
 # Ontology Population and Symbolic Reasoning Module
-# Cognitive Drift and Academic Stress Detection
-# KDU Research - NTPGB Upethra D/BCS/23/0021
 #
-# ---------------------------------------------------------------
-# WHAT THIS MODULE DOES
-#
-# This is the neural -> symbolic bridge. It takes the numeric
-# features produced by pipeline.py plus the behavioural checklist,
-# asserts them into the OWL 2 ontology as data properties on
-# freshly created individuals, runs the Pellet reasoner over the
-# 30 SWRL rules, and reads the inferred indicators, states and
-# support outputs back as Python objects.
+# This is the neural -> symbolic bridge. It takes the numeric features produced by pipeline.py plus the behavioural checklist,
+# asserts them into the OWL 2 ontology as data properties on freshly created individuals, runs the Pellet reasoner over the
+#  SWRL rules, and reads the inferred indicators, states and support outputs back as Python objects.
 #
 # It reasons in two passes:
-#   Pass 1  assert the observed facts, run Pellet, collect every
-#           indicator, state and support output the rules entail.
-#   Resolve pick one headline stress state and one headline drift
-#           state from the ladders (SWRL has no negation as
-#           failure, so the rules cannot do this themselves).
-#   Pass 2  assert the resolved outcome back into the ontology as
-#           properly typed individuals and run Pellet again. The
-#           disjointness axioms then actually validate the result
-#           instead of sitting unused, and a contradictory
-#           resolution would be reported as an inconsistency.
+#   Pass 1  assert the observed facts, run Pellet, collect every indicator, state and support output the rules entail. Resolve pick one
+#          headline stress state and one headline drift state from the ladders (SWRL has no negation as failure, so the rules cannot do this themselves).
+#   Pass 2  assert the resolved outcome back into the ontology as properly typed individuals and run Pellet again. The disjointness axioms then 
+#           actually validate the result instead of sitting unused, and a contradictory resolution would be reported as an inconsistency.
 #
-# DESIGN RULE (important for the thesis):
-# This module asserts FACTS only. It contains no thresholds and
-# no severity decisions. Every threshold (0.6, 0.65, -0.7, > 3)
-# lives in a named SWRL rule inside cognitive_drift.owl, which is
-# the single source of truth for the system's judgements.
-#
-# ---------------------------------------------------------------
-# WHY THE PREVIOUS VERSION FAILED
-#
-# The ontology declared the ten score properties as
-# rdfs:range xsd:float, but Owlready2 serialises every Python
-# float as xsd:decimal. In OWL 2 DL the value spaces of
-# xsd:decimal and xsd:float are disjoint, so every score written
-# from Python was a range violation and Pellet reported
-# "Ontology is inconsistent" - even though the ontology file was
-# consistent on its own in Protege (Protege writes real xsd:float
-# literals). The ontology now declares those ranges as
-# xsd:decimal, which also matches the datatype already used by
-# the SWRL rule thresholds.
-#
-# The previous version also shelled out to `pellet.Pellet realize`
-# and grepped its stdout. That output lists every class together
-# with its fixed individuals, so the parser reported every state
-# for every student regardless of input. It has been replaced by
-# owlready2.sync_reasoner_pellet(), which loads the inferred
-# property assertions straight back into the Python objects.
-# ---------------------------------------------------------------
+# DESIGN RULE:
+# This module asserts FACTS only. It contains no thresholds and no severity decisions. Every threshold (0.6, 0.65, -0.7, > 3)
+# lives in a named SWRL rule inside cognitive_drift.owl, which is the single source of truth for the system's judgements.
 
 import os
 import re
@@ -62,10 +24,7 @@ from owlready2 import World, sync_reasoner_pellet
 from owlready2.base import OwlReadyInconsistentOntologyError
 from owlready2.rule import Variable
 
-# -------------------------------------------------------------
 # CONFIGURATION
-# -------------------------------------------------------------
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ONTOLOGY_PATH = os.path.join(BASE_DIR, "cognitive_drift.owl")
 
@@ -73,16 +32,10 @@ owlready2.JAVA_EXE = os.environ.get("JAVA_EXE", owlready2.JAVA_EXE or "java")
 
 STRESS_LADDER = ["MildStress_State", "ModerateStress_State", "SevereStress_State"]
 DRIFT_LADDER = ["EarlyDrift_State", "ModerateDrift_State", "SevereDrift_State"]
-ACTION_LADDER = [
-    "StudentAwarenessMessage_Output",
-    "ResourceRecommendation_Output",
-    "CounselorAlert_Output",
-]
+ACTION_LADDER = ["StudentAwarenessMessage_Output", "ResourceRecommendation_Output", "CounselorAlert_Output"]
 
-PROGRESSION_STATUSES = [
-    "PersistentStress_Status", "RisingDrift_Status", "InsufficientHistory_Status",
-]
-
+PROGRESSION_STATUSES = [ "PersistentStress_Status", "RisingDrift_Status", "InsufficientHistory_Status"]
+MAX_HISTORY = 2
 
 def severity_rank(state_name, ladder):
     """0 = none, 1 = mild/early, 2 = moderate, 3 = severe."""
@@ -112,18 +65,14 @@ def normalise_history(history):
 
 # Closed-world session statuses.
 #
-# OWL is open world: "this student shows no indicators" is not
-# something a reasoner can entail, because absence of evidence is
-# not evidence of absence. Those two statuses are therefore
-# asserted here, in pass 2, where the set of inputs is known to be
-# complete. IncompleteInput_Status is different - R29 entails it
-# from an absent speech sample, so it comes out of the reasoner.
+# OWL is open world: "this student shows no indicators" is not something a reasoner can entail, because absence of evidence is
+# not evidence of absence. Those two statuses are therefore  asserted here, in pass 2, where the set of inputs is known to be
+# complete. IncompleteInput_Status is different - R29 entails it from an absent speech sample, so it comes out of the reasoner.
 STATUS_NO_INDICATORS = "NoIndicatorsDetected_Status"
 STATUS_MONITORING = "MonitoringRequired_Status"
 STATUS_INCOMPLETE_INPUT = "IncompleteInput_Status"
 
-# Checklist item -> (behaviour individual key, data property name).
-# B1..B15 are the fifteen self-reported micro-behaviours.
+# Checklist item -> (behaviour individual key, data property name). B1..B15 are the fifteen self-reported micro-behaviours.
 CHECKLIST_MAP = {
     "B1": ("attention", "attention_hasFocusDifficultyReport"),
     "B2": ("attention", "attention_hasDistractionReport"),
@@ -151,19 +100,14 @@ BEHAVIOUR_CLASSES = {
 }
 
 
-# -------------------------------------------------------------
 # ONTOLOGY HELPERS
-# -------------------------------------------------------------
-
 def load_ontology(path=ONTOLOGY_PATH):
-    """Load the ontology into a fresh in-memory world.
-
-    A new World per call keeps sessions isolated, which matters
-    under Streamlit where the module is imported once but called
-    many times.
+    """Load the ontology into a fresh in-memory world. A new World per call keeps sessions isolated, which matters
+        under Streamlit where the module is imported once but called many times.
     """
     world = World()
     onto = world.get_ontology(path).load()
+    onto.name = "cognitive_drift"
     return world, onto
 
 
@@ -178,17 +122,12 @@ def entity(onto, name):
     return found[0]
 
 
-# -------------------------------------------------------------
 # SWRL RULE CATALOGUE
-#
-# The rules are read out of the ontology itself rather than
-# duplicated in Python, so there is exactly one source of truth.
-# The catalogue maps each conclusion (e.g. ExamAnxiety_Ind) to the
-# rule or rules that can produce it, with their body atoms. This
+# The rules are read out of the ontology itself rather than duplicated in Python, so there is exactly one source of truth.
+# The catalogue maps each conclusion (e.g. ExamAnxiety_Ind) to the rule or rules that can produce it, with their body atoms. This
 # is what explanation.py should build its evidence traces from.
-# -------------------------------------------------------------
 
-_HEAD_RE = re.compile(r"^(\w+)\(\?\w+,\s*[\w.]*?(\w+)\)$")
+_HEAD_RE = re.compile(r"^(\w+)\(\?\w+,\s*.*?(\w+)\)$")
 
 
 def rule_catalogue(onto):
@@ -219,26 +158,19 @@ def rule_catalogue(onto):
     return catalogue
 
 
-# -------------------------------------------------------------
 # RULE BODY REPLAY - evidence for the explanation layer
 #
-# Pellet tells us WHAT was inferred but not WHICH rule produced
-# it, and several rules can share a conclusion (four different
-# rules can assert EarlyDrift_State). To turn an inference into an
-# explanation we replay each candidate rule's body against the
+# Pellet tells us WHAT was inferred but not WHICH rule produced it, and several rules can share a conclusion (four different
+# rules can assert EarlyDrift_State). To turn an inference into an explanation we replay each candidate rule's body against the
 # facts that were actually asserted and inferred.
 #
-# This is not a second copy of the rules. The atoms are read from
-# the ontology at runtime; this is a small generic SWRL body
-# evaluator over whatever rules the ontology happens to contain.
-# Edit a threshold in Protege and the explanation follows it.
+# This is not a second copy of the rules. The atoms are read from the ontology at runtime; this is a small generic SWRL body
+# evaluator over whatever rules the ontology happens to contain. Edit a threshold in Protege and the explanation follows it.
 #
 # A rule is reported as:
 #   confirmed  - a satisfying variable binding was found
 #   eliminated - the body cannot be satisfied, so it did not fire
 #   candidate  - could not be decided here (dropped to a maybe)
-# -------------------------------------------------------------
-
 
 class _Undecidable(Exception):
     """Raised when an atom cannot be evaluated from the known facts."""
@@ -372,14 +304,9 @@ def replay_rule(imp, student):
     return "confirmed", solved[1]
 
 
-# -------------------------------------------------------------
 # POPULATION - the neural -> symbolic assertion step
-# -------------------------------------------------------------
-
 def populate(onto, nlp_features, checklist, student_info, speech_features=None):
-    """Create the session individuals and assert the observed facts.
-
-    Returns (student_individual, asserted_values_dict).
+    """Create the session individuals and assert the observed facts. Returns (student_individual, asserted_values_dict).
     """
     uid = str(uuid.uuid4())[:8]
     checklist = checklist or {}
@@ -416,8 +343,7 @@ def populate(onto, nlp_features, checklist, student_info, speech_features=None):
         }
 
         # -- SelfTalkEntry -------------------------------------
-        # Scores are written as Python floats, which Owlready2
-        # serialises as xsd:decimal - matching the ontology ranges.
+        # Scores are written as Python floats, which Owlready2 serializes as xsd:decimal - matching the ontology ranges.
         nlp_features = nlp_features or {}
         entry = entity(onto, "SelfTalkEntry")("SelfTalk_%s" % uid)
         entry.selfTalk_hasRawText = [str(nlp_features.get("raw_text", ""))[:500]]
@@ -499,16 +425,14 @@ def populate(onto, nlp_features, checklist, student_info, speech_features=None):
         for item, (group, prop) in CHECKLIST_MAP.items():
             setattr(behaviours[group], prop, [bool(checklist.get(item, False))])
         session.hasBehavioralSignal = list(behaviours.values())
-        # How many of the five checklist groups have at least one item ticked.
-        # Counted here and asserted as a fact; R57 decides what it means.
+        # How many of the five checklist groups have at least one item ticked. Counted here and asserted as a fact; R57 decides what it means.
         groups_ticked = len({
             group for item, (group, prop) in CHECKLIST_MAP.items()
             if checklist.get(item, False)
         })
         student.hasBehaviourGroupCount = [groups_ticked]
         asserted["behaviour_group_count"] = groups_ticked
-        # v5 (calibration round 1): total ticked items, and a transparent stress evidence score.
-        #   score = 2 x min(stress words, 3) + 1 if sentiment < -0.5 + 1 if 8 or more items ticked
+        # v5 (calibration round 1): total ticked items, and a transparent stress evidence scorescore = 2 x min(stress words, 3) + 1 if sentiment < -0.5 + 1 if 8 or more items ticked
         # Counted here and asserted as facts; R62-R67 decide what they mean.
         tick_count = sum(1 for item in CHECKLIST_MAP if checklist.get(item, False))
         sw = min(int(nlp_features.get("stress_statement_count", 0) or 0), 3)
@@ -529,16 +453,11 @@ def populate(onto, nlp_features, checklist, student_info, speech_features=None):
 # SEVERITY ARBITRATION
 #
 # NOTE - open research decision.
-# The SWRL rules link the student to fixed state individuals
-# (MildStress_State, SevereStress_State, ...). Because the student
-# is never typed into a state class, the disjointness axioms in
-# the ontology never constrain anything, and a severe case can
-# fire several stress levels and several drift levels at once.
-# Until that is resolved at the ontology level, this function
-# applies an explicit, editable "highest severity wins" policy for
-# display only. The complete set of fired states is always
+# The SWRL rules link the student to fixed state individuals (MildStress_State, SevereStress_State, ...). Because the student
+# is never typed into a state class, the disjointness axioms in the ontology never constrain anything, and a severe case can
+# fire several stress levels and several drift levels at once. Until that is resolved at the ontology level, this function
+# applies an explicit, editable "highest severity wins" policy for display only. The complete set of fired states is always
 # returned separately so nothing is hidden.
-# -------------------------------------------------------------
 
 def resolve_severity(names, ladder):
     """Return the highest-severity member of `ladder` present in `names`."""
@@ -547,13 +466,9 @@ def resolve_severity(names, ladder):
 
 
 def state_conflicts(onto, state_names):
-    """Pairs of fired states the ontology itself declares disjoint.
-
-    This is a rule-set audit, not a runtime error. It reads the
-    disjointness axioms out of the ontology rather than assuming a
-    ladder, so it reports exactly what the ontology considers
-    contradictory. Under the current Tier B rules a severe case
-    fires several levels at once, and this is what surfaces it.
+    """Pairs of fired states the ontology itself declares disjoint. This is a rule-set audit, not a runtime error. It reads the
+    disjointness axioms out of the ontology rather than assuming a ladder, so it reports exactly what the ontology considers
+    contradictory. Under the current Tier B rules a severe case fires several levels at once, and this is what surfaces it.
     """
     individuals = {}
     for name in state_names:
@@ -603,12 +518,8 @@ def _declared_disjoint(cls_a, cls_b):
 
 
 def assert_resolution(onto, student, uid, resolved_states, statuses):
-    """Pass 2 - write the resolved outcome back as typed individuals.
-
-    Each resolved state gets its own individual typed into the
-    corresponding state class, so `hasInferredState`'s range and
-    the disjointness axioms are exercised for real when the
-    reasoner runs again.
+    """Pass 2 - write the resolved outcome back as typed individuals. Each resolved state gets its own individual typed into the
+    corresponding state class, so `hasInferredState`'s range and the disjointness axioms are exercised for real when the reasoner runs again.
     """
     minted = []
     with onto:
@@ -630,11 +541,8 @@ def assert_resolution(onto, student, uid, resolved_states, statuses):
 
 
 def assert_progression_facts(onto, student, uid, current_stress, current_drift, records):
-    """Pass 2 - give the progression rules (R34-R40) their inputs.
-
-    Asserts the severity rank of this session's headline states and one
-    PreviousSessionRecord per earlier session. Nothing is concluded here:
-    whether things are worsening, stable, improving, persistent or rising
+    """Pass 2 - give the progression rules (R34-R40) their inputs. Asserts the severity rank of this session's headline states and one
+    PreviousSessionRecord per earlier session. Nothing is concluded here:whether things are worsening, stable, improving, persistent or rising
     is decided by the SWRL rules inside the ontology.
     """
     with onto:
@@ -651,8 +559,6 @@ def assert_progression_facts(onto, student, uid, current_stress, current_drift, 
 
 # -------------------------------------------------------------
 # MAIN ENTRY POINT
-# -------------------------------------------------------------
-
 def run_full_pipeline(
     nlp_features,
     checklist,
@@ -663,15 +569,11 @@ def run_full_pipeline(
     verbose=True,
     history=None,
 ):
-    """Assert one session into the ontology, reason, and read back.
-
-    `history` is an optional list of the student's EARLIER sessions'
-    stored conclusions, each {"seq", "primary_stress_state",
-    "primary_drift_state"}. When given, the ontology's progression rules
+    """Assert one session into the ontology, reason, and read back. `history` is an optional list of the student's EARLIER sessions'
+    stored conclusions, each {"seq", "primary_stress_state", "primary_drift_state"}. When given, the ontology's progression rules
     compare this session with them (see MAX_HISTORY).
 
-    Returns a dict with the inferred indicators, states and support
-    outputs, the values that were asserted, and the SWRL rules that
+    Returns a dict with the inferred indicators, states and support  outputs, the values that were asserted, and the SWRL rules that
     could have produced each conclusion.
     """
     def log(message):
@@ -716,10 +618,8 @@ def run_full_pipeline(
             return None
         except OwlReadyInconsistentOntologyError as exc:
             return (
-                "Pellet reported the ontology as inconsistent during %s. "
-                "The usual cause is a datatype mismatch between a value "
-                "written from Python and the rdfs:range declared in "
-                "cognitive_drift.owl (Owlready2 writes Python floats as "
+                "Pellet reported the ontology as inconsistent during %s. " "The usual cause is a datatype mismatch between a value "
+                "written from Python and the rdfs:range declared in " "cognitive_drift.owl (Owlready2 writes Python floats as "
                 "xsd:decimal). Details: %s" % (pass_name, exc)
             )
         except Exception as exc:  # Java missing, Pellet crash, bad path
@@ -876,9 +776,7 @@ if __name__ == "__main__":
 
     sys.path.append(BASE_DIR)
 
-    # A severe case, using scores in the range pipeline.py produces
-    # for strongly negative absolutist self-talk. Run
-    # `python pipeline.py` for the real model outputs.
+    # A severe case, using scores in the range pipeline.py produces for strongly negative absolutist self-talk. Run `python pipeline.py` for the real model outputs.
     demo_features = {
         "raw_text": (
             "I always fail everything. I can never understand this material. "
