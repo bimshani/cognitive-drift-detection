@@ -50,7 +50,7 @@
 
   #app {
     width: 100%;
-    max-width: 560px;
+    max-width: 780px;
   }
 
   .screen {
@@ -69,8 +69,9 @@
     background: var(--card);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 32px 28px;
+    padding: 44px 48px;
   }
+  @media (max-width: 600px) { .card { padding: 28px 22px; } }
 
   .brand {
     text-align: center;
@@ -83,7 +84,7 @@
     margin-bottom: 10px;
   }
   .brand h1 {
-    font-size: 1.05rem;
+    font-size: 1.25rem;
     font-weight: 600;
     margin: 0;
     color: var(--text-muted);
@@ -91,12 +92,13 @@
   }
 
   h2.title {
-    font-size: 1.4rem;
+    font-size: 1.8rem;
     font-weight: 700;
     margin: 0 0 8px;
   }
   p.subtitle {
     color: var(--text-muted);
+    font-size: 1.05rem;
     margin: 0 0 24px;
     line-height: 1.55;
   }
@@ -200,10 +202,11 @@
     background: var(--soft);
     border-radius: 14px;
     padding: 16px;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     line-height: 1.6;
     color: var(--text);
-    max-height: 220px;
+    padding: 18px 22px;
+    max-height: 38vh;
     overflow-y: auto;
     margin-bottom: 6px;
   }
@@ -218,7 +221,8 @@
     border-radius: 12px;
   }
   .consent-check input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; }
-  .consent-check span { font-size: 0.9rem; line-height: 1.5; }
+  .consent-check label { font-size: 0.95rem; font-weight: 400; color: var(--text); margin: 0; }
+  .consent-check span { font-size: 0.95rem; line-height: 1.5; }
 
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 

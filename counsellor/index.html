@@ -15,7 +15,7 @@
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
 header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 header h1{font-size:1.05rem;margin:0}
-main{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
 h2{font-size:1.05rem;margin:0 0 10px}
 h3{font-size:.95rem;margin:14px 0 6px}
@@ -43,10 +43,49 @@ details{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-b
 summary{cursor:pointer;font-weight:600}
 .chart{width:100%;max-width:640px}
 .tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:.78rem;margin:2px 4px 2px 0}
-.note-item{border-left:4px solid var(--brand);padding:8px 12px;margin-bottom:8px;background:#F1F7F5;border-radius:6px}
-.note-item .meta{font-size:.78rem;color:var(--muted)}
+.note-item{border-left:3px solid var(--brand);padding:7px 10px;margin-bottom:6px;background:#F1F7F5;border-radius:6px;font-size:.88rem;position:relative}
+.note-item .meta{font-size:.75rem;color:var(--muted);padding-right:22px}
+.note-del{position:absolute;top:4px;right:4px;background:none;color:var(--muted);border:0;padding:2px 6px;font-size:1rem;line-height:1}
+.note-del:hover{background:#E4E8E6;color:var(--support)}
+button.small{padding:5px 10px;font-size:.85rem}
+.sh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}}
+.stat{background:var(--bg);border-radius:8px;padding:8px 12px}
+.stat .k{font-size:.75rem;color:var(--muted)}
+.stat .v{font-weight:600;font-size:.95rem}
+.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}@media(max-width:900px){.detail-grid{grid-template-columns:1fr}}
+.col-side{position:sticky;top:12px}@media(max-width:900px){.col-side{position:static}}
+.notes-scroll{max-height:55vh;overflow-y:auto;margin-top:8px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.card-head h2{margin:0}
+#d-list details summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:500}
+.ci-seq{font-weight:700;min-width:28px}
+.ci-meta{color:var(--muted);font-size:.85rem}
+.ci-states{color:var(--muted);font-size:.82rem;margin-left:auto}
 .ack-form{margin-top:8px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:8px}
 .warn{background:#FFF6E5;border:1px solid #F0D79A;border-radius:8px;padding:10px;font-size:.9rem}
+.why-group{margin:10px 0 4px;font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.why-rule{display:flex;gap:10px;align-items:baseline;padding:6px 10px;border-left:3px solid var(--brand);background:#F7FAF9;border-radius:6px;margin-bottom:6px;font-size:.9rem}
+.why-id{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;color:var(--brand-d);font-weight:600;min-width:34px}
+.why-res{font-weight:600}
+.why-because{color:var(--muted)}
+.rep{border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0;background:#fff}
+.rep-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}@media(max-width:700px){.rep-grid{grid-template-columns:1fr 1fr}}
+.rep-tile{background:var(--bg);border-radius:8px;padding:10px}
+.rep-tile .k{font-size:.75rem;color:var(--muted);margin-bottom:4px}
+.rep-tile .v{font-weight:600}
+.b-mild{background:#D9A94A}
+.chip{display:inline-block;background:#EEF6F4;border:1px solid #D3E6E1;border-radius:99px;padding:3px 10px;font-size:.82rem;margin:3px 4px 3px 0}
+.quote{border-left:3px solid var(--notice);background:#FFFBF2;padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:.9rem}
+.quote mark{background:#FBE7B5;border-radius:3px;padding:0 2px}
+table.measures td,table.measures th{padding:6px 8px;font-size:.85rem}
+table.measures td.num{white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.seg button{background:#fff;color:var(--text);border:0;border-radius:0;padding:6px 12px;font-size:.85rem;margin:0}
+.seg button.on{background:var(--brand);color:#fff}
+.chart-wrap{position:relative;max-width:640px}
+.chart-tip{position:absolute;width:210px;background:#1F2D33;color:#fff;font-size:.8rem;line-height:1.4;padding:8px 10px;border-radius:8px;pointer-events:none;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.chart-tip .muted{color:#C9D3D6;font-size:.75rem;margin-top:4px}
+details.flash{box-shadow:0 0 0 3px #9CCFC5;transition:box-shadow .3s}
 </style>
 </head>
 <body>
@@ -109,38 +148,47 @@ summary{cursor:pointer;font-weight:600}
     <!-- DETAIL VIEW -->
     <div id="v-detail" class="hidden">
       <button class="sec" id="back">&larr; All students</button>
-      <div class="card" style="margin-top:12px">
-        <h2 id="d-name"></h2><div class="muted" id="d-meta"></div>
-        <div class="row" style="margin-top:10px">
-          <button class="sec hidden" id="d-reset">Issue new invite code</button>
-          <button class="danger" id="d-toggle"></button>
+      <div class="card student-head" style="margin-top:12px">
+        <div class="sh-top">
+          <div><h2 id="d-name"></h2><div class="muted" id="d-meta"></div></div>
+          <div class="row">
+            <button class="sec small hidden" id="d-reset">Issue new invite code</button>
+            <button class="danger small" id="d-toggle"></button>
+          </div>
         </div>
+        <div class="stats" id="d-stats"></div>
         <div id="d-code" class="hidden"><div class="codebox" id="d-code-val"></div><p class="muted">New invite code - shown once. The old invite no longer works.</p></div>
         <div class="err" id="d-err"></div>
       </div>
-      <div class="card"><h2>Stress trend</h2><div id="d-chart" class="muted">No check-ins yet.</div></div>
-      <div class="card">
-        <h2>My private notes</h2>
-        <p class="muted">Only you can see these. Students and other counsellors cannot.</p>
-        <div class="grid2">
-          <div><label>What happened</label>
-            <select id="n-kind">
-              <option value="reviewed">Reviewed the check-in</option>
-              <option value="contacted">Contacted the student</option>
-              <option value="met_in_person">Met the student in person</option>
-              <option value="referred">Referred to another service</option>
-              <option value="follow_up">Follow-up needed</option>
-              <option value="other">Other</option>
-            </select></div>
-          <div><label>About which check-in (optional)</label><select id="n-checkin"><option value="">General note</option></select></div>
+      <div class="detail-grid">
+        <div class="col-main">
+          <div class="card"><h2>Stress trend</h2><div id="d-chart" class="muted">No check-ins yet.</div></div>
+          <div class="card"><div class="card-head"><h2>Check-ins</h2><span class="muted" id="d-count"></span></div><div id="d-list" class="muted"></div><div id="d-more"></div></div>
         </div>
-        <label>Note / feedback</label>
-        <textarea id="n-text" rows="3" maxlength="2000" placeholder="e.g. Met after the alert. Exam pressure and poor sleep. Agreed a study plan; review again next Friday."></textarea>
-        <div class="err" id="n-err"></div>
-        <button id="n-add">Save note</button>
-        <div id="n-list" style="margin-top:14px"></div>
+        <aside class="col-side">
+          <div class="card">
+            <div class="card-head"><h2>My private notes</h2><button class="sec small" id="n-open">+ Add note</button></div>
+            <p class="muted" style="margin:0 0 8px">Only you can see these.</p>
+            <div id="n-form" class="hidden">
+              <label>What happened</label>
+              <select id="n-kind">
+                <option value="reviewed">Reviewed the check-in</option>
+                <option value="contacted">Contacted the student</option>
+                <option value="met_in_person">Met the student in person</option>
+                <option value="referred">Referred to another service</option>
+                <option value="follow_up">Follow-up needed</option>
+                <option value="other">Other</option>
+              </select>
+              <label>About which check-in</label><select id="n-checkin"><option value="">General note</option></select>
+              <label>Note / feedback</label>
+              <textarea id="n-text" rows="3" maxlength="2000" placeholder="e.g. Met after the alert. Agreed a study plan; review next Friday."></textarea>
+              <div class="err" id="n-err"></div>
+              <div class="row"><button id="n-add">Save note</button><button class="sec" id="n-cancel">Cancel</button></div>
+            </div>
+            <div id="n-list" class="notes-scroll"></div>
+          </div>
+        </aside>
       </div>
-      <div class="card"><h2>Check-ins</h2><div id="d-list" class="muted"></div></div>
     </div>
   </main>
 </div>
@@ -311,7 +359,8 @@ $("code-done").onclick = () => { $("code-val").textContent = ""; $("code-reveal"
 /* ---------- detail ---------- */
 $("back").onclick = () => { showList(); loadList(); };
 async function openStudent(s) {
-  current = s; $("v-list").classList.add("hidden"); $("v-detail").classList.remove("hidden");
+  current = s; showAllCheckins = false; $("v-list").classList.add("hidden"); $("v-detail").classList.remove("hidden");
+  $("n-form").classList.add("hidden"); $("n-open").classList.remove("hidden"); $("n-text").value = ""; $("n-err").textContent = "";
   $("d-name").textContent = s.display_name;
   $("d-meta").textContent = [s.discipline, s.academic_year ? "Year " + s.academic_year : "", "Registered " + fmt(s.created_at), s.claimed_at ? "Account created " + fmt(s.claimed_at) : "Invite not used yet", s.consent_at ? "Consent given " + fmt(s.consent_at) : "Consent not yet given"].filter(Boolean).join(" · ");
   $("d-toggle").textContent = s.active ? "Deactivate student" : "Reactivate student";
@@ -329,7 +378,7 @@ async function loadNotes() {
   curNotes = n.data || [];
   const picker = $("n-checkin"); picker.innerHTML = '<option value="">General note</option>';
   curRows.forEach(r => { const o = el("option", null, "Check-in #" + r.seq + " (" + fmt(r.submitted_at) + ")"); o.value = r.id; picker.appendChild(o); });
-  renderNotes(); renderChart(curRows); renderCheckins(curRows);
+  renderNotes(); renderStats(curRows); renderChart(curRows); renderCheckins(curRows);
 }
 function renderNotes() {
   const box = $("n-list"); box.innerHTML = "";
@@ -339,7 +388,7 @@ function renderNotes() {
     const ci = curRows.find(r => r.id === n.checkin_id);
     d.appendChild(el("div", "meta", fmt(n.created_at) + " · " + (KIND[n.kind] || "Note") + (ci ? " · check-in #" + ci.seq : "")));
     d.appendChild(el("div", null, n.note)); d.lastChild.style.whiteSpace = "pre-wrap";
-    const del = el("button", "sec", "Delete"); del.style.marginTop = "6px"; del.style.padding = "3px 10px";
+    const del = el("button", "note-del", "×"); del.title = "Delete note";
     del.onclick = async () => { if (!confirm("Delete this note?")) return; await sb.from("counsellor_notes").delete().eq("id", n.id); loadNotes(); };
     d.appendChild(del); box.appendChild(d);
   });
@@ -351,8 +400,10 @@ $("n-add").onclick = async () => {
   const { error } = await sb.from("counsellor_notes").insert({ student_id: current.student_id, checkin_id: $("n-checkin").value || null, kind: $("n-kind").value, note: text });
   $("n-add").disabled = false;
   if (error) { $("n-err").textContent = error.message; return; }
-  $("n-text").value = ""; loadNotes();
+  $("n-text").value = ""; $("n-form").classList.add("hidden"); $("n-open").classList.remove("hidden"); loadNotes();
 };
+$("n-open").onclick = () => { $("n-form").classList.remove("hidden"); $("n-open").classList.add("hidden"); $("n-text").focus(); };
+$("n-cancel").onclick = () => { $("n-form").classList.add("hidden"); $("n-open").classList.remove("hidden"); $("n-text").value = ""; $("n-err").textContent = ""; };
 $("d-reset").onclick = async () => {
   if (!confirm("Issue a new invite code? The previous invite will stop working.")) return;
   const { data, error } = await sb.rpc("reissue_invite", { p_student_id: current.student_id });
@@ -367,32 +418,110 @@ $("d-toggle").onclick = async () => {
   current.active = next; $("d-toggle").textContent = next ? "Deactivate student" : "Reactivate student";
 };
 
+let chartView = "student", chartRows = [];
+const S_RANK = { MildStress_State: 1, ModerateStress_State: 2, SevereStress_State: 3 };
+const D_RANK = { EarlyDrift_State: 1, ModerateDrift_State: 2, SevereDrift_State: 3 };
+function openCheckin(id) {
+  if (!document.querySelector('#d-list details[data-id="' + id + '"]') && !showAllCheckins) { showAllCheckins = true; renderCheckins(curRows); }
+  const d = document.querySelector('#d-list details[data-id="' + id + '"]');
+  if (!d) return;
+  d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" });
+  d.classList.add("flash"); setTimeout(() => d.classList.remove("flash"), 1200);
+}
 function renderChart(rows) {
-  const box = $("d-chart"); box.innerHTML = "";
+  chartRows = rows;
+  const box = $("d-chart"); box.innerHTML = ""; box.className = "chart-box";
   const pts = rows.slice().reverse().filter(r => r.stress_label != null);
-  if (!pts.length) { box.textContent = "No check-ins yet."; return; }
-  const NS = "http://www.w3.org/2000/svg", W = 640, H = 180, L = 30, R = 14, T = 12, B = 26;
+  if (!pts.length) { box.textContent = "No check-ins yet."; box.className = "muted"; return; }
+  const seg = el("div", "seg");
+  [["student", "Student's own rating"], ["system", "System assessment"]].forEach(([v, t]) => {
+    const b = el("button", chartView === v ? "on" : "", t); b.type = "button";
+    b.onclick = () => { chartView = v; renderChart(chartRows); }; seg.appendChild(b);
+  });
+  box.appendChild(seg);
+  const NS = "http://www.w3.org/2000/svg", W = 640, H = 190, L = chartView === "system" ? 62 : 30, R = 14, T = 12, B = 30;
   const svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "chart");
   const mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
-  const x = i => L + (pts.length === 1 ? 0 : i * (W - L - R) / (pts.length - 1));
-  const y = v => T + (10 - v) * (H - T - B) / 9;
-  [1, 5, 10].forEach(v => { svg.appendChild(mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#E4E8E6" })); const t = mk("text", { x: L - 6, y: y(v) + 3, "text-anchor": "end", "font-size": 10, fill: "#6B7A80" }); t.textContent = v; svg.appendChild(t); });
-  svg.appendChild(mk("polyline", { points: pts.map((r, i) => `${x(i)},${y(r.stress_label)}`).join(" "), fill: "none", stroke: "#2F7A6F", "stroke-width": 2, opacity: .5 }));
-  const col = { support: "#C0483D", notice: "#C98A1B", calm: "#2F7A6F", none: "#B8C2BF" };
-  pts.forEach((r, i) => svg.appendChild(mk("circle", { cx: x(i), cy: y(r.stress_label), r: 5, fill: col[levelOf(r.analyses?.escalation, !!r.analyses)], stroke: "#fff", "stroke-width": 1.5 })));
-  pts.forEach((r, i) => { if (curNotes.some(n => n.checkin_id === r.id)) svg.appendChild(mk("rect", { x: x(i) - 4, y: H - B + 8, width: 8, height: 8, fill: "#1F2D33", transform: `rotate(45 ${x(i)} ${H - B + 12})` })); });
-  box.appendChild(svg);
-  box.appendChild(el("div", "muted", "Self-rated stress (1-10). Dot colour = system assessment: green steady, amber monitor, red support suggested. Dark diamond below = you wrote a note on that check-in."));
+  const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
+  const tip = el("div", "chart-tip hidden");
+  const showTip = (r, cx, cy) => {
+    const a = r.analyses; tip.innerHTML = "";
+    tip.appendChild(el("b", null, "Check-in #" + r.seq + " · " + fmt(r.submitted_at)));
+    tip.appendChild(el("div", null, "Student rated stress " + r.stress_label + "/10"));
+    if (a) {
+      tip.appendChild(el("div", null, "System: " + (a.primary_stress_state ? nice(a.primary_stress_state).replace(/ State$/, "") : "no stress state") + ", " + (a.primary_drift_state ? nice(a.primary_drift_state).replace(/ State$/, "") : "no drift state")));
+      if (a.escalation) tip.appendChild(el("div", null, "Recommended: " + nice(a.escalation)));
+    } else tip.appendChild(el("div", null, "Not analysed yet"));
+    if (curNotes.some(n => n.checkin_id === r.id)) tip.appendChild(el("div", null, "You wrote a note"));
+    tip.appendChild(el("div", "muted", "Click to open this check-in"));
+    const rect = svg.getBoundingClientRect(), sc = rect.width / W;
+    tip.style.left = Math.min(cx * sc + 12, rect.width - 220) + "px"; tip.style.top = Math.max(cy * sc - 10, 0) + "px";
+    tip.classList.remove("hidden");
+  };
+  const hit = (r, cx, cy) => {
+    const c = mk("circle", { cx, cy, r: 13, fill: "transparent", tabindex: 0, style: "cursor:pointer;outline:none" });
+    c.addEventListener("mouseenter", () => showTip(r, cx, cy)); c.addEventListener("focus", () => showTip(r, cx, cy));
+    c.addEventListener("mouseleave", () => tip.classList.add("hidden")); c.addEventListener("blur", () => tip.classList.add("hidden"));
+    c.addEventListener("click", () => openCheckin(r.id)); c.addEventListener("keydown", e => { if (e.key === "Enter") openCheckin(r.id); });
+    return c;
+  };
+  let legend;
+  if (chartView === "student") {
+    const y = v => T + (10 - v) * (H - T - B) / 9;
+    [1, 5, 10].forEach(v => { svg.appendChild(mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#E4E8E6" })); const t = mk("text", { x: L - 6, y: y(v) + 3, "text-anchor": "end", "font-size": 10, fill: "#6B7A80" }); t.textContent = v; svg.appendChild(t); });
+    svg.appendChild(mk("polyline", { points: pts.map((r, i) => `${x(i)},${y(r.stress_label)}`).join(" "), fill: "none", stroke: "#2F7A6F", "stroke-width": 2, opacity: .5 }));
+    const col = { support: "#C0483D", notice: "#C98A1B", calm: "#2F7A6F", none: "#B8C2BF" };
+    pts.forEach((r, i) => svg.appendChild(mk("circle", { cx: x(i), cy: y(r.stress_label), r: 5, fill: col[levelOf(r.analyses?.escalation, !!r.analyses)], stroke: "#fff", "stroke-width": 1.5 })));
+    pts.forEach((r, i) => svg.appendChild(hit(r, x(i), y(r.stress_label))));
+    legend = "How stressed the student said they felt (1-10). Dot colour = the system's recommendation: green steady, amber monitor, red support suggested.";
+  } else {
+    const y = v => T + (3 - v) * (H - T - B) / 3;
+    ["None", "Mild / Early", "Moderate", "Severe"].forEach((lab, v) => { svg.appendChild(mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#E4E8E6" })); const t = mk("text", { x: L - 6, y: y(v) + 3, "text-anchor": "end", "font-size": 10, fill: "#6B7A80" }); t.textContent = lab; svg.appendChild(t); });
+    const sr = r => S_RANK[r.analyses?.primary_stress_state] || 0, dr = r => D_RANK[r.analyses?.primary_drift_state] || 0;
+    const done = pts.map((r, i) => [r, i]).filter(([r]) => r.analyses);
+    [[sr, "#C0483D", 0], [dr, "#3E6FB0", 0]].forEach(([f, c]) => {
+      svg.appendChild(mk("polyline", { points: done.map(([r, i]) => `${x(i)},${y(f(r))}`).join(" "), fill: "none", stroke: c, "stroke-width": 2, opacity: .6 }));
+      done.forEach(([r, i]) => svg.appendChild(mk("circle", { cx: x(i), cy: y(f(r)), r: 4.5, fill: c, stroke: "#fff", "stroke-width": 1.5 })));
+    });
+    done.forEach(([r, i]) => svg.appendChild(hit(r, x(i), y(Math.max(sr(r), dr(r))))));
+    legend = "What the system inferred at each check-in. Red = academic stress level, blue = cognitive drift level.";
+  }
+  pts.forEach((r, i) => { if (curNotes.some(n => n.checkin_id === r.id)) svg.appendChild(mk("rect", { x: x(i) - 4, y: H - B + 12, width: 8, height: 8, fill: "#1F2D33", transform: `rotate(45 ${x(i)} ${H - B + 16})` })); });
+  const wrap = el("div", "chart-wrap"); wrap.appendChild(svg); wrap.appendChild(tip); box.appendChild(wrap);
+  box.appendChild(el("div", "muted", legend + " Dark diamond = you wrote a note. Hover a point for details, click to open that check-in."));
 }
 
+let showAllCheckins = false;
+const CI_LIMIT = 5;
+function renderStats(rows) {
+  const box = $("d-stats"); box.innerHTML = "";
+  const last = rows[0], la = last && last.analyses;
+  const stat = (k, v) => { const d = el("div", "stat"); d.appendChild(el("div", "k", k)); d.appendChild(el("div", "v", v)); box.appendChild(d); };
+  stat("Check-ins", String(rows.length));
+  stat("Last check-in", last ? fmt(last.submitted_at) : "-");
+  stat("Latest result", la ? [la.primary_stress_state && nice(la.primary_stress_state).replace(/ State$/, ""), la.primary_drift_state && nice(la.primary_drift_state).replace(/ State$/, "")].filter(Boolean).join(" · ") || "Nothing found" : "-");
+  stat("Open alerts", current && current.open_alerts > 0 ? String(current.open_alerts) : "None");
+}
 function renderCheckins(rows) {
   const box = $("d-list"); box.innerHTML = ""; box.className = "";
+  const more = $("d-more"); more.innerHTML = "";
+  $("d-count").textContent = rows.length ? rows.length + " in total" : "";
   if (!rows.length) { box.textContent = "No check-ins yet."; box.className = "muted"; return; }
-  rows.forEach(r => {
+  const shown = showAllCheckins ? rows : rows.slice(0, CI_LIMIT);
+  if (rows.length > CI_LIMIT) {
+    const b = el("button", "sec small", showAllCheckins ? "Show only the latest " + CI_LIMIT : "Show all " + rows.length + " check-ins");
+    b.onclick = () => { showAllCheckins = !showAllCheckins; renderCheckins(curRows); };
+    more.appendChild(b);
+  }
+  shown.forEach(r => {
     const a = r.analyses; const lvl = levelOf(a?.escalation, !!a);
-    const d = el("details"); const sm = el("summary");
-    sm.append("#" + r.seq + " · " + fmt(r.submitted_at) + " · stress " + r.stress_label + "/10 · "); sm.appendChild(badge(r.status === "done" ? lvl : "none"));
-    if (r.status !== "done") sm.append(" " + r.status);
+    const d = el("details"); d.dataset.id = r.id; const sm = el("summary");
+    sm.appendChild(el("span", "ci-seq", "#" + r.seq));
+    sm.appendChild(el("span", "ci-meta", fmt(r.submitted_at) + " · rated " + r.stress_label + "/10"));
+    if (r.status === "failed") sm.appendChild(el("span", "badge b-support", "Analysis failed"));
+    else if (r.status !== "done") sm.appendChild(el("span", "badge b-none", "Analysing…"));
+    else sm.appendChild(badge(lvl));
+    if (a) sm.appendChild(el("span", "ci-states", [a.primary_stress_state && nice(a.primary_stress_state).replace(/ State$/, ""), a.primary_drift_state && nice(a.primary_drift_state).replace(/ State$/, "")].filter(Boolean).join(" · ")));
     d.appendChild(sm);
     d.appendChild(el("h3", null, "What the student wrote")); d.appendChild(el("pre", null, r.self_talk_text || "-"));
     // Voice note: player + transcript, right under the written text
@@ -419,23 +548,160 @@ function renderCheckins(rows) {
     d.appendChild(el("div", "muted", [r.activity_type && nice(r.activity_type), r.workload_level && r.workload_level + " workload", r.linked_to_event ? "linked to an event" : ""].filter(Boolean).join(" · ")));
     if (r.status === "failed") d.appendChild(el("div", "err", "Analysis failed: " + (r.processing_error || "unknown error")));
     if (a) {
-      d.appendChild(el("h3", null, "Counsellor report")); d.appendChild(el("pre", null, a.counselor_report || "-"));
-      const tags = el("div");
-      [["Stress state", a.primary_stress_state], ["Drift state", a.primary_drift_state], ["Escalation", a.escalation], ["Progression", a.progression]].forEach(([k, v]) => v && tags.appendChild(el("span", "tag", k + ": " + nice(v).replace(/ Progression$/, ""))));
-      d.appendChild(tags);
-      if (a.recommended_actions?.length) { d.appendChild(el("h3", null, "Recommended actions")); a.recommended_actions.forEach(x => d.appendChild(el("span", "tag", nice(x)))); }
-      d.appendChild(el("h3", null, "Message the student saw")); d.appendChild(el("pre", null, a.student_message || "-"));
-      const ev = el("details"); ev.appendChild(el("summary", null, "Why? Rules that fired & evidence"));
-      ev.appendChild(el("pre", null, JSON.stringify({ fired_rules: a.fired_rules, evidence_phrases: a.evidence_phrases, indicators: a.inferred_indicators, states: a.inferred_states, state_conflicts: a.state_conflicts, ontology_hash: a.ontology_hash }, null, 2)));
-      d.appendChild(ev);
+      d.appendChild(renderReport(r, a));
+      const msg = el("details"); msg.appendChild(el("summary", null, "Message the student saw")); msg.appendChild(el("pre", null, a.student_message || "-")); d.appendChild(msg);
+      d.appendChild(renderWhy(a));
+      const full = el("details"); full.appendChild(el("summary", null, "Full text report")); full.appendChild(el("pre", null, a.counselor_report || "-")); d.appendChild(full);
     }
     const mine = curNotes.filter(n => n.checkin_id === r.id);
     if (mine.length) { d.appendChild(el("h3", null, "Your notes on this check-in")); mine.forEach(n => d.appendChild(el("pre", null, (KIND[n.kind] || "Note") + " - " + fmt(n.created_at) + "\n" + n.note))); }
     const addn = el("button", "sec", "Add a note about this check-in");
-    addn.onclick = () => { $("n-checkin").value = r.id; $("n-text").focus(); $("n-text").scrollIntoView({ behavior: "smooth", block: "center" }); };
+    addn.onclick = () => { $("n-form").classList.remove("hidden"); $("n-open").classList.add("hidden"); $("n-checkin").value = r.id; $("n-text").focus(); $("n-text").scrollIntoView({ behavior: "smooth", block: "center" }); };
     d.appendChild(addn); d.appendChild(document.createTextNode(" "));
     box.appendChild(d);
   });
+}
+
+const LEVEL_TEXT = {
+  MildStress_State: ["Mild", "b-mild"], ModerateStress_State: ["Moderate", "b-notice"], SevereStress_State: ["Severe", "b-support"],
+  EarlyDrift_State: ["Early", "b-mild"], ModerateDrift_State: ["Moderate", "b-notice"], SevereDrift_State: ["Severe", "b-support"]
+};
+const ACTION_TEXT = { CounselorAlert_Output: ["Counsellor alert", "b-support"], ResourceRecommendation_Output: ["Share resources", "b-notice"], StudentAwarenessMessage_Output: ["Awareness message", "b-calm"] };
+const TREND_TEXT = { Worsening_Progression: "Higher than last time", Improving_Progression: "Lower than last time", Stable_Progression: "Same as last time" };
+const INDICATOR_TEXT = {
+  ExamAnxiety_Ind: "Assessment-focused worry", DeadlinePressure_Ind: "Pressure tied to a deadline", PerceivedOverload_Ind: "Workload feels unmanageable",
+  HelplessnessAboutWorkload_Ind: "Helplessness with postponing tasks", PhysicalStressComplaint_Ind: "Headache and sleep difficulty", SocialAcademicPressure_Ind: "Comparison with peers",
+  AttentionLoss_Ind: "Focus difficulty and zoning out", WorkingMemoryLapse_Ind: "Re-reading and mind going blank", SlowedThinking_Ind: "Slowed thinking",
+  WidespreadStrain_Ind: "Difficulties in 3+ checklist areas", AllOrNothingThinking_Ind: "All-or-nothing wording", Catastrophizing_Ind: "Expecting the worst",
+  Overgeneralization_Ind: "Overgeneralising from setbacks", EmotionalReasoning_Ind: "Feelings taken as facts", MentalFilter_Ind: "Focus on what went wrong",
+  Personalization_Ind: "Self-blame", ShouldStatements_Ind: "Rigid 'should' rules", MentalExhaustion_Ind: "Mental exhaustion with restlessness",
+  Disengagement_Ind: "Giving up early, feeling no point", DistractionLapse_Ind: "Distracted and forgetful"
+};
+const CHECK_TEXT = {
+  B1: "Difficulty staying focused", B2: "Frequently distracted", B3: "Zoning out during study", B4: "Re-reading without understanding", B5: "Forgetting what I studied",
+  B6: "Mind going blank", B7: "Mentally exhausted quickly", B8: "Thinking feels slower than usual", B9: "Difficulty forming clear thoughts", B10: "Postponing study tasks",
+  B11: "Giving up earlier than planned", B12: "Feeling no point in studying", B13: "Headache or physical tension", B14: "Sleep difficulty due to worry", B15: "Physically restless"
+};
+function levelBadge(text, cls) { return el("span", "badge " + cls, text); }
+function tile(label, content) {
+  const t = el("div", "rep-tile"); t.appendChild(el("div", "k", label));
+  const v = el("div", "v"); if (typeof content === "string") v.textContent = content; else v.appendChild(content);
+  t.appendChild(v); return t;
+}
+function toneWord(x) { return x == null ? "" : x <= -0.3 ? "negative" : x >= 0.3 ? "positive" : "neutral"; }
+function renderReport(r, a) {
+  const box = el("div", "rep");
+  const grid = el("div", "rep-grid");
+  const st = LEVEL_TEXT[a.primary_stress_state], dr = LEVEL_TEXT[a.primary_drift_state], ac = ACTION_TEXT[a.escalation];
+  grid.appendChild(tile("Academic stress", st ? levelBadge(st[0], st[1]) : "None found"));
+  grid.appendChild(tile("Cognitive drift", dr ? levelBadge(dr[0], dr[1]) : "None found"));
+  grid.appendChild(tile("Recommended", ac ? levelBadge(ac[0], ac[1]) : "No action"));
+  const statuses = a.session_statuses || [];
+  let trend = TREND_TEXT[a.progression] || (statuses.includes("InsufficientHistory_Status") ? "First check-in" : "-");
+  if (statuses.includes("PersistentStress_Status")) trend += " · stress high 3 times in a row";
+  if (statuses.includes("RisingDrift_Status")) trend += " · drift rising";
+  grid.appendChild(tile("Compared with last check-in", trend));
+  box.appendChild(grid);
+
+  const inds = a.inferred_indicators || [];
+  box.appendChild(el("h3", null, "What was noticed"));
+  if (inds.length) { const w = el("div"); inds.forEach(i => w.appendChild(el("span", "chip", INDICATOR_TEXT[i] || nice(i).replace(/ Ind$/, "")))); box.appendChild(w); }
+  else box.appendChild(el("div", "muted", "No specific indicators."));
+
+  const ck = r.checklist || {};
+  const ticked = Object.keys(CHECK_TEXT).filter(k => ck[k]);
+  box.appendChild(el("h3", null, "Behaviours the student ticked (" + ticked.length + " of 15)"));
+  if (ticked.length) { const w = el("div"); ticked.forEach(k => w.appendChild(el("span", "chip", CHECK_TEXT[k]))); box.appendChild(w); }
+  else box.appendChild(el("div", "muted", "None ticked."));
+
+  const t = a.nlp_features || {}, v = a.speech_features || null;
+  box.appendChild(el("h3", null, "Language measures"));
+  const tbl = el("table", "measures"); const head = el("tr");
+  ["Measure", "Written", v ? "Voice" : null].filter(Boolean).forEach(h => head.appendChild(el("th", null, h)));
+  tbl.appendChild(head);
+  const fmtN = x => x == null ? "-" : String(Math.round(x * 100) / 100);
+  const rows = [
+    ["Overall tone (-1 to +1)", t.sentiment_score != null ? fmtN(t.sentiment_score) + " " + toneWord(t.sentiment_score) : "-", v && v.sentiment_score != null ? fmtN(v.sentiment_score) + " " + toneWord(v.sentiment_score) : "-"],
+    ["Negative words (0 to 1)", fmtN(t.negative_language_score), v ? fmtN(v.negative_language_score) : "-"],
+    ["All-or-nothing words", fmtN(t.absolutist_term_count), v ? fmtN(v.absolutist_term_count) : "-"],
+    ["Stress words", fmtN(t.stress_statement_count), "-"],
+    ["'Should' statements", fmtN(t.should_statement_count), "-"],
+    ["Self-blame phrases", fmtN(t.personalization_count), "-"],
+    ["Helplessness (0 to 1)", fmtN(t.helplessness_score), v ? fmtN(v.helplessness_score) : "-"],
+    ["Expecting the worst (0 to 1)", fmtN(t.catastrophizing_score), v ? fmtN(v.catastrophizing_score) : "-"],
+    ["Overgeneralising (0 to 1)", fmtN(t.overgeneralization_score), v ? fmtN(v.overgeneralization_score) : "-"]
+  ];
+  if (v) { rows.push(["Speaking pace", "-", v.speech_pace || "-"]); rows.push(["Hesitations (um, uh)", "-", fmtN(v.hesitation_count)]); }
+  rows.forEach(row => { const tr = el("tr"); row.slice(0, v ? 3 : 2).forEach((c, i) => tr.appendChild(el("td", i ? "num" : null, c))); tbl.appendChild(tr); });
+  const wrap = el("div", "table-wrap"); wrap.appendChild(tbl); box.appendChild(wrap);
+  if (v) box.appendChild(el("div", "muted", "Voice scores are computed on the transcript. Hesitations feed the drift rules; the other voice scores are shown for reference."));
+
+  const ph = a.evidence_phrases || [];
+  if (ph.length) {
+    box.appendChild(el("h3", null, "Words that stood out"));
+    ph.forEach(p => {
+      const q = el("div", "quote"); const marks = [...(p.absolutist_terms || []), ...(p.negative_terms || [])];
+      let text = p.phrase || "";
+      if (marks.length) {
+        const re = new RegExp("\\b(" + marks.map(m => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "gi");
+        let last = 0; text.replace(re, (m, _g, i) => { q.append(text.slice(last, i)); q.appendChild(el("mark", null, m)); last = i + m.length; return m; });
+        q.append(text.slice(last));
+      } else q.textContent = text;
+      box.appendChild(q);
+    });
+  }
+  return box;
+}
+const WHY_GROUPS = [["exhibitsIndicator", "Indicators"], ["hasInferredState", "States"], ["hasRecommendedAction", "Support actions"], ["hasProgressionRecord", "Progression"], ["hasSessionStatus", "Session status"]];
+const OPS = { greaterThan: ">", greaterThanOrEqual: "≥", lessThan: "<", lessThanOrEqual: "≤", equal: "=", notEqual: "≠" };
+const PROP_NAMES = {
+  hasChecklistTickCount: "checklist items ticked", hasBehaviourGroupCount: "checklist groups ticked", hasStressEvidenceScore: "stress evidence score",
+  hasCurrentStressRank: "current stress rank", hasCurrentDriftRank: "current drift rank", prev_hasStressRank: "previous stress rank", prev_hasDriftRank: "previous drift rank",
+  session_isLinkedToSpecificEvent: "linked to an event", speech_hasHesitationCount: "hesitations in voice", speech_hasSpeechAvailable: "voice note given"
+};
+const SKIP_PROPS = ["hasSession", "hasSelfTalkEntry", "hasSpeechSample", "hasBehavioralSignal", "hasPreviousSession", "prev_hasRecency"];
+const propName = p => PROP_NAMES[p] || p.replace(/^(selfTalk|speech|session|attention|memory|energy|avoidance|physical|prev)_has/, "").replace(/^has/, "").replace(/Report$/, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+const niceVal = v => typeof v === "number" ? String(Math.round(v * 100) / 100) : String(v);
+function ruleReason(rule) {
+  const parts = []; let facts = [];
+  (rule.evidence || []).forEach(e => {
+    if (e.kind === "test") {
+      const left = [...facts].reverse().find(f => f.value === e.observed);
+      const right = [...facts].reverse().find(f => f.value === e.threshold && f !== left);
+      parts.push((left ? propName(left.property) + " " : "") + niceVal(e.observed) + " " + (OPS[e.operator] || e.operator) + " " + (right ? propName(right.property) + " " : "") + niceVal(e.threshold));
+      facts = []; return;
+    }
+    if (SKIP_PROPS.includes(e.property)) return;
+    if (typeof e.value === "string" && /_(Ind|State|Output|Status|Progression)$/.test(e.value)) { parts.push(nice(e.value).replace(/ (Ind|State|Status|Progression)$/, "")); return; }
+    if (e.value === true) { parts.push(propName(e.property)); return; }
+    facts.push(e);
+  });
+  return parts.join(" · ");
+}
+function renderWhy(a) {
+  const rules = (a.fired_rules || []).filter(r => r.status === "confirmed");
+  const box = el("details"); box.appendChild(el("summary", null, "Why? Rules that fired (" + rules.length + ")"));
+  if (!rules.length) { box.appendChild(el("div", "muted", "No rule trace is stored for this check-in.")); return box; }
+  WHY_GROUPS.forEach(([prop, title]) => {
+    const group = rules.filter(r => r.property === prop);
+    if (!group.length) return;
+    box.appendChild(el("div", "why-group", title));
+    group.forEach(r => {
+      const row = el("div", "why-rule");
+      row.appendChild(el("span", "why-id", r.rule_id));
+      const body = el("div");
+      body.appendChild(el("span", "why-res", nice(r.conclusion).replace(/ (Ind|State|Status|Progression)$/, "")));
+      const reason = ruleReason(r);
+      if (reason) { body.appendChild(document.createTextNode("  ")); body.appendChild(el("span", "why-because", "because " + reason)); }
+      row.appendChild(body); box.appendChild(row);
+    });
+  });
+  if ((a.inferred_states || []).length > 2) box.appendChild(el("div", "muted", "When several levels fire together, the highest level on each ladder is reported."));
+  const tech = el("details"); tech.style.marginTop = "10px";
+  tech.appendChild(el("summary", null, "Technical details (full rule trace)"));
+  tech.appendChild(el("pre", null, JSON.stringify({ fired_rules: a.fired_rules, evidence_phrases: a.evidence_phrases, indicators: a.inferred_indicators, states: a.inferred_states, state_conflicts: a.state_conflicts, ontology_hash: a.ontology_hash }, null, 2)));
+  box.appendChild(tech);
+  return box;
 }
 
 /* ---------- init ---------- */

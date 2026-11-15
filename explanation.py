@@ -436,7 +436,7 @@ def counselor_report(results, phrases=None):
 
     scores = results.get("asserted_values", {}).get("self_talk", {})
     if scores:
-        add("LANGUAGE MEASURES FROM SELF-TALK")
+        add("LANGUAGE MEASURES")
         for key in sorted(scores):
             add("  %-28s %s" % (key, scores[key]))
         add("")
